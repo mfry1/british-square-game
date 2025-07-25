@@ -254,6 +254,10 @@ class BritishSquareOnline extends BritishSquareGame {
         this.syncGameState(data.gameState);
         this.showGameStatus();
         this.showMessage("Game started!", "success");
+        
+        // Ensure game is marked as active
+        this.gameActive = true;
+        this.updateValidMoves();
         break;
 
       case "move_made":
@@ -337,7 +341,15 @@ class BritishSquareOnline extends BritishSquareGame {
 
   makeMove(index) {
     // Override parent method to send moves to server
-    if (!this.gameActive || !this.isInRoom) return;
+    if (!this.isInRoom) {
+      this.showMessage("You're not in a room", "error");
+      return;
+    }
+
+    if (!this.gameActive) {
+      this.showMessage("Game is not active", "error");
+      return;
+    }
 
     // Check if it's our turn
     if (this.currentPlayer !== this.playerNumber) {
@@ -529,8 +541,13 @@ class BritishSquareOnline extends BritishSquareGame {
 
   // Handle square clicks for online mode
   handleSquareClick(index) {
-    if (!this.gameActive || !this.isInRoom) {
-      this.showMessage("Game is not active or you're not in a room", "error");
+    if (!this.isInRoom) {
+      this.showMessage("You're not in a room", "error");
+      return;
+    }
+
+    if (!this.gameActive) {
+      this.showMessage("Game is not active", "error");
       return;
     }
 
@@ -543,6 +560,12 @@ class BritishSquareOnline extends BritishSquareGame {
     // Check if square is empty
     if (this.board[index] !== null) {
       this.showMessage("Square is already occupied", "error");
+      return;
+    }
+
+    // Check if move is valid using the same logic as the base game
+    if (!this.isValidMove(index)) {
+      this.showMessage("Invalid move! Cannot place next to opponent pieces.", "error");
       return;
     }
 
