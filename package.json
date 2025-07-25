@@ -4,8 +4,12 @@
   "description": "A web-based implementation of the classic British Square board game from 1978",
   "main": "index.html",
   "scripts": {
-    "start": "python -m http.server 8080",
-    "serve": "python3 -m http.server 8000"
+    "start": "cd server && node server.js",
+    "serve": "python3 -m http.server 8000",
+    "install-server": "cd server && npm install"
+  },
+  "engines": {
+    "node": ">=14.0.0"
   },
   "keywords": [
     "board-game",
@@ -21,10 +25,10 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/mattf/british-square-game.git"
+    "url": "https://github.com/mfry1/british-square-game.git"
   },
-  "homepage": "https://mattf.github.io/british-square-game/",
+  "homepage": "https://mfry1.github.io/british-square-game/",
   "bugs": {
-    "url": "https://github.com/mattf/british-square-game/issues"
+    "url": "https://github.com/mfry1/british-square-game/issues"
   }
 }

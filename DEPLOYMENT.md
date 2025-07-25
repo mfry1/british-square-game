@@ -1,53 +1,73 @@
-# Deployment Guide - British Square Game
+# British Square Game Deployment Guide
 
-## Option 1: GitHub Pages (Recommended - Free)
+## 🚀 Deployment Strategy
 
-### Step 1: Create GitHub Repository
-1. Go to [GitHub.com](https://github.com) and sign in
-2. Click "New repository"
-3. Name it: `british-square-game`
-4. Make it Public
-5. Click "Create repository"
+This application requires two deployments:
+1. **Frontend (Web App)**: GitHub Pages
+2. **Backend (WebSocket Server)**: Cloud hosting service
 
-### Step 2: Upload Your Files
-1. Click "uploading an existing file"
-2. Drag and drop all files from your `living room app` folder:
-   - `index.html`
-   - `styles.css` 
-   - `script.js`
-   - `README.md`
-   - `package.json`
-3. Write commit message: "Initial commit - British Square Game"
-4. Click "Commit changes"
+## 📦 Frontend Deployment (GitHub Pages)
 
-### Step 3: Enable GitHub Pages
-1. Go to your repository Settings
-2. Scroll down to "Pages" section
-3. Under "Source", select "Deploy from a branch"
-4. Select "main" branch and "/ (root)" folder
-5. Click "Save"
-6. Wait 2-3 minutes for deployment
+1. **Enable GitHub Pages**:
+   - Go to your repository: https://github.com/mfry1/british-square-game
+   - Click "Settings" tab
+   - Scroll to "Pages" section
+   - Source: "Deploy from a branch"
+   - Branch: "main" 
+   - Folder: "/ (root)"
+   - Click "Save"
 
-### Step 4: Access Your Game
-Your game will be live at: `https://YOUR-USERNAME.github.io/british-square-game/`
+2. **Your game will be available at**: 
+   `https://mfry1.github.io/british-square-game/`
 
----
+## 🌐 Backend Deployment Options
 
-## Option 2: Netlify (Alternative - Free)
+### Option A: Railway (Recommended - Free)
 
-### Step 1: Prepare Files
-1. Create a ZIP file with all your game files
-2. Go to [Netlify.com](https://netlify.com)
-3. Sign up for free account
+1. **Create Railway Account**: https://railway.app/
+2. **Connect GitHub**: Link your repository
+3. **Deploy**: 
+   - Select your repository
+   - Railway will auto-detect Node.js
+   - Set start command: `cd server && node server.js`
+   - Deploy!
 
-### Step 2: Deploy
-1. Go to Netlify dashboard
-2. Drag your ZIP file to the deploy area
-3. Netlify will automatically deploy your site
-4. You'll get a URL like: `https://amazing-name-123456.netlify.app`
+### Option B: Render (Free tier)
 
-### Step 3: Custom Domain (Optional)
-- You can change the subdomain name in Site Settings
+1. **Create Render Account**: https://render.com/
+2. **New Web Service**:
+   - Connect GitHub repository
+   - Build Command: `cd server && npm install`
+   - Start Command: `cd server && node server.js`
+   - Port: `8080` (Render auto-assigns)
+
+## 🔧 Configuration After Deployment
+
+1. **Get your WebSocket server URL** (example: `wss://your-app.railway.app`)
+
+2. **Update `gameonline.js`**:
+   ```javascript
+   // Replace this line:
+   wsUrl = "wss://your-websocket-server.herokuapp.com";
+   
+   // With your actual server URL:
+   wsUrl = "wss://your-actual-server.railway.app";
+   ```
+
+3. **Commit and push**:
+   ```bash
+   git add .
+   git commit -m "Update WebSocket URL for production"
+   git push origin main
+   ```
+
+## 🎮 Testing
+
+1. **Open your GitHub Pages URL**
+2. **Click "Online Mode"**
+3. **Create a room**
+4. **Share room code with friends**
+5. **Play together!**
 
 ---
 

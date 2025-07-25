@@ -24,9 +24,11 @@ class BritishSquareOnline extends BritishSquareGame {
 
   createOnlineUI() {
     const controlsContainer = document.querySelector(".game-setup");
-    
+
     if (!controlsContainer) {
-      console.error('Game setup container not found. Make sure the page is fully loaded.');
+      console.error(
+        "Game setup container not found. Make sure the page is fully loaded."
+      );
       return;
     }
 
@@ -101,7 +103,10 @@ class BritishSquareOnline extends BritishSquareGame {
 
     if (joinRoomBtn) {
       joinRoomBtn.addEventListener("click", () => {
-        const roomCode = roomCodeInput && roomCodeInput.value ? roomCodeInput.value.trim().toUpperCase() : '';
+        const roomCode =
+          roomCodeInput && roomCodeInput.value
+            ? roomCodeInput.value.trim().toUpperCase()
+            : "";
         if (roomCode) {
           this.joinRoom(roomCode);
         }
@@ -146,7 +151,21 @@ class BritishSquareOnline extends BritishSquareGame {
 
   connect() {
     try {
-      this.ws = new WebSocket("ws://localhost:8081");
+      // Dynamic WebSocket URL configuration
+      let wsUrl;
+      if (
+        window.location.hostname === "localhost" ||
+        window.location.hostname === "127.0.0.1"
+      ) {
+        // Development
+        wsUrl = "ws://localhost:8081";
+      } else {
+        // Production - you'll need to replace this with your actual deployed server URL
+        wsUrl = "wss://web-production-57049.up.railway.app"; // Replace with your server URL
+      }
+
+      console.log("Connecting to WebSocket at:", wsUrl);
+      this.ws = new WebSocket(wsUrl);
 
       this.ws.onopen = () => {
         console.log("Connected to multiplayer server");
@@ -367,7 +386,7 @@ class BritishSquareOnline extends BritishSquareGame {
 
     let message = "";
     let winner = null;
-    
+
     if (data.reason === "opponent_disconnected") {
       message = "Opponent disconnected. You win!";
       winner = this.playerNumber;
@@ -383,8 +402,8 @@ class BritishSquareOnline extends BritishSquareGame {
     }
 
     // Calculate scores for the modal
-    const player1Count = this.board.filter(cell => cell === 1).length;
-    const player2Count = this.board.filter(cell => cell === 2).length;
+    const player1Count = this.board.filter((cell) => cell === 1).length;
+    const player2Count = this.board.filter((cell) => cell === 2).length;
 
     // Use the base class method with proper parameters
     this.showWinModal(winner, player1Count, player2Count, message);
