@@ -69,9 +69,12 @@ class BritishSquare3D extends BritishSquareGame {
     // Create the game board
     this.create3DBoard();
 
-    // Event listeners
+    // Event listeners for both mouse and touch
     canvas.addEventListener("click", (event) => this.on3DClick(event));
     canvas.addEventListener("mousemove", (event) => this.on3DMouseMove(event));
+    
+    // Touch event listener for mobile tile selection
+    canvas.addEventListener("touchend", (event) => this.on3DTouch(event));
 
     // Start render loop
     this.animate();
@@ -111,7 +114,7 @@ class BritishSquare3D extends BritishSquareGame {
     });
 
     canvas.addEventListener("mousemove", (event) => {
-      if (this.cameraControls.mouseDown) {
+      if (this.cameraControls && this.cameraControls.mouseDown) {
         const deltaX = event.clientX - this.cameraControls.mouseX;
         const deltaY = event.clientY - this.cameraControls.mouseY;
 
@@ -132,8 +135,48 @@ class BritishSquare3D extends BritishSquareGame {
     });
 
     canvas.addEventListener("mouseup", () => {
-      this.cameraControls.mouseDown = false;
-      canvas.style.cursor = "grab";
+      if (this.cameraControls) {
+        this.cameraControls.mouseDown = false;
+        canvas.style.cursor = "grab";
+      }
+    });
+
+    // Touch events for mobile camera control
+    canvas.addEventListener("touchstart", (event) => {
+      if (event.touches.length === 1 && this.cameraControls) {
+        event.preventDefault();
+        this.cameraControls.mouseDown = true;
+        this.cameraControls.mouseX = event.touches[0].clientX;
+        this.cameraControls.mouseY = event.touches[0].clientY;
+      }
+    });
+
+    canvas.addEventListener("touchmove", (event) => {
+      if (this.cameraControls && this.cameraControls.mouseDown && event.touches.length === 1) {
+        event.preventDefault();
+        const deltaX = event.touches[0].clientX - this.cameraControls.mouseX;
+        const deltaY = event.touches[0].clientY - this.cameraControls.mouseY;
+
+        this.cameraControls.theta -= deltaX * 0.01;
+        this.cameraControls.phi += deltaY * 0.01;
+
+        // Limit vertical rotation
+        this.cameraControls.phi = Math.max(
+          0.1,
+          Math.min(Math.PI - 0.1, this.cameraControls.phi)
+        );
+
+        this.updateCameraPosition();
+
+        this.cameraControls.mouseX = event.touches[0].clientX;
+        this.cameraControls.mouseY = event.touches[0].clientY;
+      }
+    });
+
+    canvas.addEventListener("touchend", () => {
+      if (this.cameraControls) {
+        this.cameraControls.mouseDown = false;
+      }
     });
 
     // Mouse wheel for zoom
@@ -351,6 +394,56 @@ class BritishSquare3D extends BritishSquareGame {
             square.material.opacity = 0.5;
           }
         }
+      }
+    }
+  }
+
+  on3DTouch(event) {
+    // Only handle single touch tap for tile selection
+    if (event.changedTouches.length !== 1) return;
+    
+    event.preventDefault();
+    
+    // If this was a camera drag, don't select a tile
+    // Check if cameraControls exists and mouseDown is true
+    if (this.cameraControls && this.cameraControls.mouseDown) {
+      return;
+    }
+    
+    const touch = event.changedTouches[0];
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    
+    // Calculate touch position relative to canvas
+    const x = touch.clientX - rect.left;
+    const y = touch.clientY - rect.top;
+    
+    // Convert to normalized device coordinates
+    const mouse = new THREE.Vector2();
+    mouse.x = (x / rect.width) * 2 - 1;
+    mouse.y = -(y / rect.height) * 2 + 1;
+
+    // Create raycaster
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(mouse, this.camera);
+
+    // Check for intersections with square meshes
+    const intersects = raycaster.intersectObjects(this.squares);
+
+    if (intersects.length > 0) {
+      const clickedMesh = intersects[0].object;
+      const index = clickedMesh.userData.index;
+
+      if (this.board[index] === null && this.isValidMove(index)) {
+        this.makeMove(index);
+      } else if (this.board[index] !== null) {
+        // Square occupied
+        return;
+      } else {
+        // Invalid move
+        this.showMessage(
+          "Invalid move! Cannot place next to opponent pieces.",
+          "error"
+        );
       }
     }
   }
