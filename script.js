@@ -5,7 +5,7 @@ class BritishSquareGame {
         this.gameActive = true;
         this.moveCount = 0;
         this.passCount = 0;
-        this.gameMode = 'pvp'; // 'pvp' or 'ai'
+        this.gameMode = 'ai'; // 'pvp' or 'ai'
         this.aiDifficulty = 'medium';
         
         this.initializeGame();
@@ -55,23 +55,49 @@ class BritishSquareGame {
         this.board[index] = this.currentPlayer;
         this.updateSquareDisplay(index);
         this.moveCount++;
-        this.passCount = 0; // Reset pass count when a move is made
 
-        // Check for game end
+        // Check for game end first
         if (this.checkGameEnd()) {
             this.endGame();
             return;
         }
 
-        // Switch players
-        this.currentPlayer = this.currentPlayer === 1 ? 2 : 1;
-        this.updateDisplay();
-        this.updateValidMoves();
+        // Handle turn switching
+        this.switchTurn();
 
         // If it's AI mode and now AI's turn, make AI move
         if (this.gameMode === 'ai' && this.currentPlayer === 2 && this.gameActive) {
             this.makeAIMove();
         }
+    }
+
+    switchTurn() {
+        const nextPlayer = this.currentPlayer === 1 ? 2 : 1;
+        
+        // Check if next player has valid moves
+        if (this.hasValidMoves(nextPlayer)) {
+            this.currentPlayer = nextPlayer;
+            this.updateDisplay();
+            this.updateValidMoves();
+        } else {
+            // Next player can't move, check if current player can continue
+            if (this.hasValidMoves(this.currentPlayer)) {
+                this.showMessage(`Player ${nextPlayer} has no valid moves. Player ${this.currentPlayer} continues.`, "info");
+                this.updateDisplay();
+                this.updateValidMoves();
+            } else {
+                // Neither player can move, game should end
+                // This will be caught by checkGameEnd() on the next call
+                this.updateDisplay();
+                this.updateValidMoves();
+            }
+        }
+    }
+
+    // Test method to check if modal works
+    testModal() {
+        console.log('Testing modal...');
+        this.showWinModal(1, 5, 3, "Test message - Player 1 wins!");
     }
 
     makeAIMove() {
@@ -339,6 +365,11 @@ class BritishSquareGame {
             square.classList.remove('invalid', 'center-blocked');
         });
 
+        // Don't show valid move indicators when AI is thinking/making a move
+        if (this.gameMode === 'ai' && this.currentPlayer === 2) {
+            return;
+        }
+
         // Mark invalid moves
         for (let i = 0; i < 25; i++) {
             if (this.board[i] === null) { // Only check empty squares
@@ -374,25 +405,8 @@ class BritishSquareGame {
         const player1HasMoves = this.hasValidMoves(1);
         const player2HasMoves = this.hasValidMoves(2);
         
-        if (!player1HasMoves && !player2HasMoves) {
-            return true; // Both players are blocked
-        }
-        
-        if (!this.hasValidMoves(this.currentPlayer)) {
-            // Current player must pass
-            this.passCount++;
-            this.showMessage(`Player ${this.currentPlayer} has no valid moves and must pass.`, "info");
-            this.currentPlayer = this.currentPlayer === 1 ? 2 : 1;
-            this.updateDisplay();
-            this.updateValidMoves();
-            
-            // If both players have passed, game ends
-            if (this.passCount >= 2) {
-                return true;
-            }
-        }
-        
-        return false;
+        // Game ends only when both players have no valid moves
+        return !player1HasMoves && !player2HasMoves;
     }
 
     endGame() {
@@ -422,7 +436,7 @@ class BritishSquareGame {
     showWinModal(winner, p1Score, p2Score, message) {
         const modal = document.createElement('div');
         modal.className = 'modal';
-        modal.style.display = 'block';
+        modal.style.cssText = 'display: block !important;';
         
         let winnerText;
         if (this.gameMode === 'ai') {
@@ -449,6 +463,7 @@ class BritishSquareGame {
                 <button class="btn" onclick="this.parentElement.parentElement.remove(); game.newGame();">Play Again</button>
             </div>
         `;
+        
         document.body.appendChild(modal);
     }
 
@@ -525,10 +540,6 @@ class BritishSquareGame {
         this.updateValidMoves();
     }
 
-    resetGame() {
-        this.newGame();
-    }
-
     setGameMode(mode) {
         this.gameMode = mode;
         this.aiDifficulty = document.getElementById('ai-difficulty').value;
@@ -545,7 +556,6 @@ class BritishSquareGame {
 
     attachEventListeners() {
         document.getElementById('new-game-btn').addEventListener('click', () => this.newGame());
-        document.getElementById('reset-btn').addEventListener('click', () => this.resetGame());
         
         // Game mode buttons
         document.getElementById('pvp-mode').addEventListener('click', () => this.setGameMode('pvp'));
