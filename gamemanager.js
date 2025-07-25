@@ -1,6 +1,6 @@
 class GameManager {
   constructor() {
-    this.is3D = true; // Start with 3D
+    this.is3D = false; // Start with 2D mode as default
     this.gameMode = 'ai'; // Default game mode: 'ai', 'human', 'online'
     this.game2D = null;
     this.game3D = null;
@@ -16,9 +16,15 @@ class GameManager {
     if (this.gameMode === 'online') {
       this.initializeOnlineGame();
     } else {
-      // Initialize 3D game first (since we start in 3D mode)
-      this.game3D = new BritishSquare3D();
-      this.currentGame = this.game3D;
+      // Initialize 2D game first (since we start in 2D mode)
+      this.initialize2DGame();
+      this.currentGame = this.game2D;
+
+      // Set up initial display for 2D mode
+      document.getElementById("game-canvas").style.display = "none";
+      document.getElementById("game-board").style.display = "grid";
+      document.getElementById("toggle-3d-btn").textContent = "Switch to 3D";
+      document.querySelector("header h1").textContent = "British Square";
 
       // Hide loading message after a brief delay
       setTimeout(() => {
@@ -84,15 +90,22 @@ class GameManager {
       // Initialize the 2D board
       this.game2D.createBoard();
 
-      // Copy current game state from 3D to 2D
-      this.copyGameState(this.game3D, this.game2D);
-    } else {
-      // Just copy the current state
+      // Only copy game state if 3D game exists
+      if (this.game3D) {
+        this.copyGameState(this.game3D, this.game2D);
+      }
+    } else if (this.game3D) {
+      // Just copy the current state if 3D game exists
       this.copyGameState(this.game3D, this.game2D);
     }
   }
 
   copyGameState(fromGame, toGame) {
+    // Don't copy if source game doesn't exist
+    if (!fromGame || !toGame) {
+      return;
+    }
+    
     // Copy basic game state
     toGame.board = [...fromGame.board];
     toGame.currentPlayer = fromGame.currentPlayer;
@@ -155,6 +168,11 @@ class GameManager {
       this.is3D = false;
     } else {
       // Switch to 3D
+      if (!this.game3D) {
+        // Initialize 3D game if it doesn't exist
+        this.game3D = new BritishSquare3D();
+      }
+      
       if (this.game2D) {
         // Copy current state from 2D to 3D
         this.copyGameState(this.game2D, this.game3D);
