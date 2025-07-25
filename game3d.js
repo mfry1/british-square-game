@@ -26,7 +26,8 @@ class BritishSquare3D extends BritishSquareGame {
 
     // Scene setup
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x2a5298);
+    // Make scene background transparent to blend with app background
+    this.scene.background = null;
 
     // Camera setup
     this.camera = new THREE.PerspectiveCamera(
@@ -42,7 +43,9 @@ class BritishSquare3D extends BritishSquareGame {
     this.renderer = new THREE.WebGLRenderer({
       canvas: canvas,
       antialias: true,
+      alpha: true, // Enable transparency
     });
+    this.renderer.setClearColor(0x000000, 0); // Transparent background
     this.renderer.setSize(500, 500);
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -236,12 +239,12 @@ class BritishSquare3D extends BritishSquareGame {
   }
 
   setupLighting() {
-    // Ambient light
-    const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+    // Ambient light - increased for transparent background
+    const ambientLight = new THREE.AmbientLight(0x404040, 0.8);
     this.scene.add(ambientLight);
 
-    // Main directional light
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    // Main directional light - adjusted for better visibility on transparent background
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
     directionalLight.position.set(10, 10, 5);
     directionalLight.castShadow = true;
     directionalLight.shadow.mapSize.width = 2048;
@@ -254,8 +257,8 @@ class BritishSquare3D extends BritishSquareGame {
     directionalLight.shadow.camera.bottom = -10;
     this.scene.add(directionalLight);
 
-    // Fill light
-    const fillLight = new THREE.DirectionalLight(0x87ceeb, 0.3);
+    // Fill light - warmer tone to complement the blue gradient background
+    const fillLight = new THREE.DirectionalLight(0xffd700, 0.4);
     fillLight.position.set(-5, 3, -5);
     this.scene.add(fillLight);
   }
@@ -673,6 +676,12 @@ class BritishSquare3D extends BritishSquareGame {
 // Update the mobile responsive styles for 3D
 const style3D = document.createElement("style");
 style3D.textContent = `
+    .game-canvas {
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+    }
+    
     @media (max-width: 768px) {
         .game-canvas {
             width: 350px !important;
