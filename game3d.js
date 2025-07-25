@@ -73,8 +73,13 @@ class BritishSquare3D extends BritishSquareGame {
     canvas.addEventListener("click", (event) => this.on3DClick(event));
     canvas.addEventListener("mousemove", (event) => this.on3DMouseMove(event));
     
-    // Touch event listener for mobile tile selection
-    canvas.addEventListener("touchend", (event) => this.on3DTouch(event));
+    // Touch event listener for mobile tile selection - use touchstart for better iOS compatibility
+    canvas.addEventListener("touchstart", (event) => {
+      // Only handle single touch for tile selection
+      if (event.touches.length === 1) {
+        this.handleTouchSelection(event);
+      }
+    });
 
     // Start render loop
     this.animate();
@@ -98,6 +103,10 @@ class BritishSquare3D extends BritishSquareGame {
       phi: 0.5, // vertical rotation
       theta: 0, // horizontal rotation
       radius: 5, // distance from center
+      touchStartTime: 0,
+      touchMoved: false,
+      touchStartX: 0,
+      touchStartY: 0,
     };
 
     const canvas = this.renderer.domElement;
@@ -144,18 +153,33 @@ class BritishSquare3D extends BritishSquareGame {
     // Touch events for mobile camera control
     canvas.addEventListener("touchstart", (event) => {
       if (event.touches.length === 1 && this.cameraControls) {
-        event.preventDefault();
+        // Only prevent default if we're sure this is for camera control
+        // Don't prevent default immediately to allow tile selection to work
         this.cameraControls.mouseDown = true;
         this.cameraControls.mouseX = event.touches[0].clientX;
         this.cameraControls.mouseY = event.touches[0].clientY;
+        this.cameraControls.touchStartTime = Date.now();
+        this.cameraControls.touchMoved = false;
+        this.cameraControls.touchStartX = event.touches[0].clientX;
+        this.cameraControls.touchStartY = event.touches[0].clientY;
       }
     });
 
     canvas.addEventListener("touchmove", (event) => {
       if (this.cameraControls && this.cameraControls.mouseDown && event.touches.length === 1) {
+        // Now we know it's camera movement, so prevent default
         event.preventDefault();
+        
         const deltaX = event.touches[0].clientX - this.cameraControls.mouseX;
         const deltaY = event.touches[0].clientY - this.cameraControls.mouseY;
+
+        // Check if this is a significant movement (not just a tap)
+        const totalMoveX = Math.abs(event.touches[0].clientX - this.cameraControls.touchStartX);
+        const totalMoveY = Math.abs(event.touches[0].clientY - this.cameraControls.touchStartY);
+        
+        if (totalMoveX > 5 || totalMoveY > 5) {
+          this.cameraControls.touchMoved = true;
+        }
 
         this.cameraControls.theta -= deltaX * 0.01;
         this.cameraControls.phi += deltaY * 0.01;
@@ -398,16 +422,107 @@ class BritishSquare3D extends BritishSquareGame {
     }
   }
 
+  handleTouchSelection(event) {
+    if (!this.gameActive) return;
+
+    // In AI mode, only allow human player touches
+    if (this.gameMode === "ai" && this.currentPlayer === 2) {
+      return;
+    }
+
+    // Store touch start info for later comparison
+    const touch = event.touches[0];
+    const startTime = Date.now();
+    const startX = touch.clientX;
+    const startY = touch.clientY;
+
+    // Set up a one-time touchend listener to handle the tap
+    const handleTouchEnd = (endEvent) => {
+      endEvent.preventDefault();
+      
+      // Remove the listener
+      this.renderer.domElement.removeEventListener("touchend", handleTouchEnd);
+      
+      const endTime = Date.now();
+      const duration = endTime - startTime;
+      
+      // Only treat as tap if it was quick and didn't move much
+      if (duration < 300 && endEvent.changedTouches.length === 1) {
+        const endTouch = endEvent.changedTouches[0];
+        const moveDistance = Math.sqrt(
+          Math.pow(endTouch.clientX - startX, 2) + Math.pow(endTouch.clientY - startY, 2)
+        );
+        
+        // If the touch didn't move much, treat it as a tile selection
+        if (moveDistance < 10) {
+          this.processTileSelection(endTouch);
+        }
+      }
+    };
+
+    // Add the touchend listener
+    this.renderer.domElement.addEventListener("touchend", handleTouchEnd);
+  }
+
+  processTileSelection(touch) {
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    
+    // Calculate touch position relative to canvas
+    const x = touch.clientX - rect.left;
+    const y = touch.clientY - rect.top;
+    
+    // Convert to normalized device coordinates
+    const mouse = new THREE.Vector2();
+    mouse.x = (x / rect.width) * 2 - 1;
+    mouse.y = -(y / rect.height) * 2 + 1;
+
+    // Create raycaster
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(mouse, this.camera);
+
+    // Check for intersections with square meshes
+    const intersects = raycaster.intersectObjects(this.squares);
+
+    if (intersects.length > 0) {
+      const clickedMesh = intersects[0].object;
+      const index = clickedMesh.userData.index;
+
+      if (this.board[index] === null && this.isValidMove(index)) {
+        this.makeMove(index);
+      } else if (this.board[index] !== null) {
+        // Square occupied
+        return;
+      } else {
+        // Invalid move
+        this.showMessage(
+          "Invalid move! Cannot place next to opponent pieces.",
+          "error"
+        );
+      }
+    }
+  }
+
   on3DTouch(event) {
+    if (!this.gameActive) return;
+
+    // In AI mode, only allow human player touches
+    if (this.gameMode === "ai" && this.currentPlayer === 2) {
+      return;
+    }
+
     // Only handle single touch tap for tile selection
     if (event.changedTouches.length !== 1) return;
     
     event.preventDefault();
     
-    // If this was a camera drag, don't select a tile
-    // Check if cameraControls exists and mouseDown is true
-    if (this.cameraControls && this.cameraControls.mouseDown) {
-      return;
+    // Check if this was a camera drag (movement) rather than a tap
+    if (this.cameraControls) {
+      const touchDuration = Date.now() - this.cameraControls.touchStartTime;
+      
+      // If the touch moved significantly or lasted too long, don't select a tile
+      if (this.cameraControls.touchMoved || touchDuration > 300) {
+        return;
+      }
     }
     
     const touch = event.changedTouches[0];
