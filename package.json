@@ -1,0 +1,30 @@
+{
+  "name": "british-square-game",
+  "version": "1.0.0",
+  "description": "A web-based implementation of the classic British Square board game from 1978",
+  "main": "index.html",
+  "scripts": {
+    "start": "python -m http.server 8000",
+    "serve": "python3 -m http.server 8000"
+  },
+  "keywords": [
+    "board-game",
+    "british-square",
+    "strategy-game",
+    "gabriel-games",
+    "1978",
+    "web-game",
+    "javascript",
+    "html5"
+  ],
+  "author": "mattf",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mattf/british-square-game.git"
+  },
+  "homepage": "https://mattf.github.io/british-square-game/",
+  "bugs": {
+    "url": "https://github.com/mattf/british-square-game/issues"
+  }
+}
