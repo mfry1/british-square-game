@@ -4,7 +4,7 @@
   "description": "A web-based implementation of the classic British Square board game from 1978",
   "main": "index.html",
   "scripts": {
-    "start": "python -m http.server 8000",
+    "start": "python -m http.server 8080",
     "serve": "python3 -m http.server 8000"
   },
   "keywords": [

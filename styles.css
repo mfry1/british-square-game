@@ -457,3 +457,160 @@ header p {
         font-size: 0.9rem;
     }
 }
+
+/* Online Mode Styles */
+.online-controls {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 10px;
+    padding: 20px;
+    margin-top: 15px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.connection-status {
+    text-align: center;
+    margin-bottom: 15px;
+    font-weight: bold;
+    padding: 10px;
+    border-radius: 5px;
+    background: rgba(74, 144, 226, 0.1);
+    color: #2980b9;
+}
+
+.room-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    align-items: center;
+}
+
+.room-join {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.room-join input {
+    padding: 10px 15px;
+    border: 2px solid #ddd;
+    border-radius: 5px;
+    font-size: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    width: 150px;
+    text-align: center;
+}
+
+.room-join input:focus {
+    outline: none;
+    border-color: #4a90e2;
+    box-shadow: 0 0 5px rgba(74, 144, 226, 0.3);
+}
+
+.room-info {
+    border: 2px solid #4a90e2;
+    border-radius: 10px;
+    padding: 20px;
+    background: rgba(74, 144, 226, 0.05);
+}
+
+.room-code-display {
+    text-align: center;
+    margin-bottom: 20px;
+    padding: 15px;
+    background: rgba(74, 144, 226, 0.1);
+    border-radius: 8px;
+    font-size: 1.2rem;
+    font-weight: bold;
+}
+
+.room-code-display span {
+    color: #2980b9;
+    font-family: 'Courier New', monospace;
+    font-size: 1.4rem;
+    letter-spacing: 2px;
+}
+
+.players-status {
+    margin-bottom: 20px;
+}
+
+.player-status {
+    padding: 10px;
+    margin-bottom: 8px;
+    background: rgba(255, 255, 255, 0.7);
+    border-radius: 5px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.ready-controls {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+
+.game-status {
+    background: rgba(46, 204, 113, 0.1);
+    border: 2px solid #2ecc71;
+    border-radius: 10px;
+    padding: 15px;
+    text-align: center;
+}
+
+#turn-indicator {
+    font-size: 1.3rem;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+#turn-indicator.your-turn {
+    color: #27ae60;
+}
+
+#turn-indicator.opponent-turn {
+    color: #e67e22;
+}
+
+.btn-small {
+    padding: 5px 10px;
+    font-size: 0.9rem;
+}
+
+.btn-secondary {
+    background: #95a5a6;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background: #7f8c8d;
+}
+
+#online-mode.active {
+    background: #e74c3c;
+    color: white;
+}
+
+#online-mode.active:hover {
+    background: #c0392b;
+}
+
+/* Responsive adjustments for online mode */
+@media (max-width: 768px) {
+    .room-join {
+        flex-direction: column;
+    }
+    
+    .room-join input {
+        width: 200px;
+    }
+    
+    .ready-controls {
+        flex-direction: column;
+    }
+    
+    .online-controls {
+        padding: 15px;
+    }
+}

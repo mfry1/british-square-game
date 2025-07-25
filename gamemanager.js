@@ -1,23 +1,65 @@
 class GameManager {
   constructor() {
     this.is3D = true; // Start with 3D
+    this.gameMode = 'ai'; // Default game mode: 'ai', 'human', 'online'
     this.game2D = null;
     this.game3D = null;
+    this.gameOnline = null;
     this.currentGame = null;
 
     this.initializeGames();
-    this.attachToggleListener();
+    this.attachEventListeners();
   }
 
   initializeGames() {
-    // Initialize 3D game first (since we start in 3D mode)
-    this.game3D = new BritishSquare3D();
-    this.currentGame = this.game3D;
+    // Initialize based on current game mode
+    if (this.gameMode === 'online') {
+      this.initializeOnlineGame();
+    } else {
+      // Initialize 3D game first (since we start in 3D mode)
+      this.game3D = new BritishSquare3D();
+      this.currentGame = this.game3D;
 
-    // Hide loading message after a brief delay
-    setTimeout(() => {
-      document.getElementById("loading-message").style.display = "none";
-    }, 1000);
+      // Hide loading message after a brief delay
+      setTimeout(() => {
+        document.getElementById("loading-message").style.display = "none";
+      }, 1000);
+    }
+  }
+
+  initializeOnlineGame() {
+    if (!this.gameOnline) {
+      // Ensure DOM elements exist before creating online game
+      const gameSetup = document.querySelector('.game-setup');
+      if (!gameSetup) {
+        console.error('Game setup not found. Delaying online mode initialization.');
+        setTimeout(() => this.initializeOnlineGame(), 100);
+        return;
+      }
+      
+      this.gameOnline = new BritishSquareOnline();
+      this.currentGame = this.gameOnline;
+      
+      // Hide 3D/2D toggle for online mode
+      const toggleBtn = document.getElementById("toggle-3d-btn");
+      if (toggleBtn) {
+        toggleBtn.style.display = "none";
+      }
+      
+      // Hide 3D canvas and show 2D board for online
+      const canvas = document.getElementById("game-canvas");
+      const board = document.getElementById("game-board");
+      if (canvas) canvas.style.display = "none";
+      if (board) board.style.display = "grid";
+      
+      // Hide loading message
+      setTimeout(() => {
+        const loadingMessage = document.getElementById("loading-message");
+        if (loadingMessage) {
+          loadingMessage.style.display = "none";
+        }
+      }, 1000);
+    }
   }
 
   initialize2DGame() {
@@ -82,6 +124,11 @@ class GameManager {
   }
 
   toggleView() {
+    // Don't allow toggle in online mode
+    if (this.gameMode === 'online') {
+      return;
+    }
+
     const canvas = document.getElementById("game-canvas");
     const board2D = document.getElementById("game-board");
     const toggleBtn = document.getElementById("toggle-3d-btn");
@@ -134,6 +181,50 @@ class GameManager {
     game = this.currentGame;
   }
 
+  switchToOnlineMode() {
+    this.gameMode = 'online';
+    
+    // Clean up existing games
+    if (this.game3D) {
+      // Clean up 3D resources if needed
+    }
+    
+    // Initialize online game
+    this.initializeOnlineGame();
+    
+    // Update UI
+    document.querySelector("header h1").textContent = "British Square Online";
+  }
+
+  switchToOfflineMode() {
+    this.gameMode = 'ai';
+    
+    // Clean up online game
+    if (this.gameOnline && this.gameOnline.ws) {
+      this.gameOnline.ws.close();
+      this.gameOnline = null;
+    }
+    
+    // Show 3D/2D toggle
+    document.getElementById("toggle-3d-btn").style.display = "block";
+    
+    // Reinitialize 3D game
+    this.game3D = new BritishSquare3D();
+    this.currentGame = this.game3D;
+    this.is3D = true;
+    
+    // Show 3D canvas
+    document.getElementById("game-canvas").style.display = "block";
+    document.getElementById("game-board").style.display = "none";
+    
+    // Update UI
+    document.querySelector("header h1").textContent = "British Square 3D";
+    document.getElementById("toggle-3d-btn").textContent = "Switch to 2D";
+    
+    // Update global reference
+    game = this.currentGame;
+  }
+
   updateGameEventHandlers() {
     // Update new game button
     const newGameBtn = document.getElementById("new-game-btn");
@@ -143,24 +234,55 @@ class GameManager {
 
     // Update game mode buttons
     document.getElementById("pvp-mode").onclick = () => {
-      this.currentGame.setGameMode("pvp");
+      if (this.gameMode !== 'online') {
+        this.currentGame.setGameMode("pvp");
+      }
     };
 
     document.getElementById("ai-mode").onclick = () => {
-      this.currentGame.setGameMode("ai");
+      if (this.gameMode !== 'online') {
+        this.currentGame.setGameMode("ai");
+      }
     };
+
+    // Add online mode button handler
+    const onlineModeBtn = document.getElementById("online-mode");
+    if (onlineModeBtn) {
+      onlineModeBtn.onclick = () => {
+        if (this.gameMode === 'online') {
+          this.switchToOfflineMode();
+          onlineModeBtn.textContent = "Online Mode";
+          onlineModeBtn.classList.remove("active");
+        } else {
+          this.switchToOnlineMode();
+          onlineModeBtn.textContent = "Exit Online";
+          onlineModeBtn.classList.add("active");
+        }
+      };
+    }
 
     // Update AI difficulty
-    document.getElementById("ai-difficulty").onchange = (e) => {
-      this.currentGame.aiDifficulty = e.target.value;
-    };
+    const aiDifficultySelect = document.getElementById("ai-difficulty");
+    if (aiDifficultySelect) {
+      aiDifficultySelect.onchange = (e) => {
+        if (this.currentGame && this.currentGame.aiDifficulty !== undefined) {
+          this.currentGame.aiDifficulty = e.target.value;
+        }
+      };
+    }
   }
 
-  attachToggleListener() {
+  attachEventListeners() {
+    // Attach toggle button listener
     const toggleBtn = document.getElementById("toggle-3d-btn");
-    toggleBtn.addEventListener("click", () => {
-      this.toggleView();
-    });
+    if (toggleBtn) {
+      toggleBtn.addEventListener("click", () => {
+        this.toggleView();
+      });
+    }
+
+    // Initial event handler setup
+    this.updateGameEventHandlers();
   }
 }
 
