@@ -1,7 +1,9 @@
 const WebSocket = require('ws');
 const { v4: uuidv4 } = require('uuid');
 
-const wss = new WebSocket.Server({ port: 8081 });
+// Use Railway's assigned port or default to 8081 for local development
+const PORT = process.env.PORT || 8081;
+const wss = new WebSocket.Server({ port: PORT });
 
 // Game rooms storage
 const gameRooms = new Map();
@@ -380,4 +382,4 @@ function leaveRoom(playerId) {
   }
 }
 
-console.log('British Square multiplayer server running on port 8081');
+console.log(`British Square multiplayer server running on port ${PORT}`);
