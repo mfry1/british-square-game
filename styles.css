@@ -114,8 +114,29 @@ header p {
     display: flex;
     justify-content: center;
     padding: 20px;
+    position: relative;
 }
 
+.game-canvas {
+    border-radius: 15px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    background: #1a1a1a;
+    cursor: pointer;
+}
+
+.loading-message {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #fff;
+    font-size: 1.2rem;
+    font-weight: bold;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+    pointer-events: none;
+}
+
+/* Keep old game-board styles for fallback */
 .game-board {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
@@ -292,6 +313,21 @@ header p {
     transform: translateY(0);
 }
 
+.btn-toggle {
+    background: linear-gradient(135deg, #28a745, #20c997);
+    color: white;
+    border: none;
+}
+
+.btn-toggle:hover {
+    background: linear-gradient(135deg, #218838, #1ea96c);
+    transform: translateY(-2px);
+}
+
+.btn-toggle:active {
+    background: linear-gradient(135deg, #1e7e34, #198754);
+}
+
 /* Game Info Section */
 .game-info {
     background: rgba(255, 255, 255, 0.95);
@@ -401,6 +437,11 @@ header p {
     .game-board {
         width: 320px;
         height: 320px;
+    }
+    
+    .game-canvas {
+        width: 350px !important;
+        height: 350px !important;
     }
     
     .square {
