@@ -139,14 +139,17 @@ class GameRoom {
     }
 
     // Check if position is adjacent to opponent pieces (not allowed)
+    // Only check orthogonal adjacency (up, down, left, right) - diagonal is OK
     const row = Math.floor(position / 5);
     const col = position % 5;
     const opponent = this.gameState.currentPlayer === 1 ? 2 : 1;
 
+    // Check only orthogonal neighbors (up, down, left, right)
     const directions = [
-      [-1, -1], [-1, 0], [-1, 1],
-      [0, -1],           [0, 1],
-      [1, -1],  [1, 0],  [1, 1]
+      [-1, 0], // up
+      [1, 0],  // down
+      [0, -1], // left
+      [0, 1]   // right
     ];
 
     for (const [dr, dc] of directions) {

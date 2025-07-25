@@ -12,6 +12,9 @@ class BritishSquareOnline extends BritishSquareGame {
     this.opponentReady = false;
     this.playerReady = false;
 
+    // Set game mode to avoid AI-specific behaviors
+    this.gameMode = "online";
+
     // Create the 2D board for online mode
     this.createBoard();
 
@@ -69,8 +72,7 @@ class BritishSquareOnline extends BritishSquareGame {
             <span id="player2-status">Player 2: Waiting...</span>
           </div>
         </div>
-        <div class="ready-controls">
-          <button id="ready-btn" class="btn">Ready</button>
+        <div class="room-controls">
           <button id="leave-room-btn" class="btn btn-secondary">Leave Room</button>
         </div>
       </div>
@@ -91,7 +93,6 @@ class BritishSquareOnline extends BritishSquareGame {
     const createRoomBtn = document.getElementById("create-room-btn");
     const joinRoomBtn = document.getElementById("join-room-btn");
     const roomCodeInput = document.getElementById("room-code");
-    const readyBtn = document.getElementById("ready-btn");
     const leaveRoomBtn = document.getElementById("leave-room-btn");
     const copyRoomCodeBtn = document.getElementById("copy-room-code");
 
@@ -121,12 +122,6 @@ class BritishSquareOnline extends BritishSquareGame {
             this.joinRoom(roomCode);
           }
         }
-      });
-    }
-
-    if (readyBtn) {
-      readyBtn.addEventListener("click", () => {
-        this.toggleReady();
       });
     }
 
@@ -214,18 +209,27 @@ class BritishSquareOnline extends BritishSquareGame {
         this.roomId = data.roomId;
         this.playerNumber = data.playerNumber;
         this.isInRoom = true;
+        this.playerReady = true; // Auto-ready when creating room
         this.showRoomInfo();
         document.getElementById("current-room-code").textContent = data.roomId;
         this.updatePlayerStatus();
+        
+        // Automatically set as ready
+        this.sendReadyStatus(true);
         break;
 
       case "room_joined":
         this.roomId = data.roomId;
         this.playerNumber = data.playerNumber;
         this.isInRoom = true;
+        this.playerReady = true; // Auto-ready when joining room
         this.showRoomInfo();
         document.getElementById("current-room-code").textContent = data.roomId;
         this.updatePlayerStatus();
+        
+        // Automatically set as ready
+        this.sendReadyStatus(true);
+        
         // Update game state if game is in progress
         if (data.gameState) {
           this.syncGameState(data.gameState);
@@ -235,6 +239,10 @@ class BritishSquareOnline extends BritishSquareGame {
       case "player_joined":
         this.updatePlayerStatus();
         this.showMessage(`Player ${data.playerNumber} joined the room`, "info");
+        // When a second player joins, they're automatically ready
+        if (data.playerNumber !== this.playerNumber) {
+          this.opponentReady = true;
+        }
         break;
 
       case "player_left":
@@ -322,20 +330,14 @@ class BritishSquareOnline extends BritishSquareGame {
     }
   }
 
-  toggleReady() {
+  sendReadyStatus(ready) {
     if (this.ws && this.isConnected && this.isInRoom) {
-      this.playerReady = !this.playerReady;
-
       this.ws.send(
         JSON.stringify({
           type: "player_ready",
-          ready: this.playerReady,
+          ready: ready,
         })
       );
-
-      const readyBtn = document.getElementById("ready-btn");
-      readyBtn.textContent = this.playerReady ? "Not Ready" : "Ready";
-      readyBtn.className = this.playerReady ? "btn btn-secondary" : "btn";
     }
   }
 
@@ -457,21 +459,24 @@ class BritishSquareOnline extends BritishSquareGame {
 
     // Update based on current room state
     if (this.playerNumber === 1) {
-      player1Status.textContent = `Player 1 (You): ${
-        this.playerReady ? "Ready" : "Not Ready"
-      }`;
+      player1Status.textContent = `Player 1 (You): Ready`;
       player2Status.textContent =
         this.roomId && this.getOpponentCount() > 0
-          ? `Player 2: ${this.opponentReady ? "Ready" : "Not Ready"}`
+          ? `Player 2: ${this.opponentReady ? "Ready" : "Waiting..."}` 
           : "Player 2: Waiting...";
     } else if (this.playerNumber === 2) {
       player1Status.textContent =
         this.roomId && this.getOpponentCount() > 0
-          ? `Player 1: ${this.opponentReady ? "Ready" : "Not Ready"}`
+          ? `Player 1: ${this.opponentReady ? "Ready" : "Waiting..."}`
           : "Player 1: Waiting...";
-      player2Status.textContent = `Player 2 (You): ${
-        this.playerReady ? "Ready" : "Not Ready"
-      }`;
+      player2Status.textContent = `Player 2 (You): Ready`;
+    }
+    
+    // Show waiting message when both players are present but not both ready
+    if (this.roomId && this.getOpponentCount() > 0) {
+      if (this.playerReady && this.opponentReady) {
+        this.showMessage("Both players ready! Game will start automatically.", "success");
+      }
     }
   }
 
@@ -539,6 +544,31 @@ class BritishSquareOnline extends BritishSquareGame {
     }
   }
 
+  // Override updateValidMoves for online mode
+  updateValidMoves() {
+    // Clear previous visual indicators
+    document.querySelectorAll(".square").forEach((square) => {
+      square.classList.remove("invalid", "center-blocked");
+    });
+
+    // In online mode, always show valid moves (no AI turn restrictions)
+    for (let i = 0; i < 25; i++) {
+      if (this.board[i] === null) {
+        // Only check empty squares
+        const square = document.querySelector(`[data-index="${i}"]`);
+
+        if (!this.isValidMove(i)) {
+          if (this.currentPlayer === 1 && this.moveCount === 0 && i === 12) {
+            square.classList.add("center-blocked");
+          } else {
+            square.classList.add("invalid");
+          }
+        }
+      }
+    }
+  }
+
+  // Handle square clicks for online mode
   // Handle square clicks for online mode
   handleSquareClick(index) {
     if (!this.isInRoom) {
