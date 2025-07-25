@@ -188,27 +188,230 @@ class BritishSquareGame {
     const row = Math.floor(moveIndex / 5);
     const col = moveIndex % 5;
 
-    // 1. Prefer center positions (higher strategic value)
-    const distanceFromCenter = Math.abs(row - 2) + Math.abs(col - 2);
-    score += (4 - distanceFromCenter) * 2;
+    // 1. Enhanced center/edge positioning strategy
+    const centerValue = this.getCenterControlValue(row, col);
+    score += centerValue;
 
-    // 2. Count how many opponent moves this blocks
+    // 2. Anti-edge strategy: Block opponent edge formations
+    const edgeBlockingScore = this.evaluateEdgeBlocking(testBoard, moveIndex);
+    score += edgeBlockingScore;
+
+    // 3. Count how many opponent moves this blocks
     const blockedMoves = this.countBlockedOpponentMoves(testBoard, moveIndex);
     score += blockedMoves * 5;
 
-    // 3. Count how many future moves this enables for AI
+    // 4. Count how many future moves this enables for AI
     const enabledMoves = this.countEnabledAIMoves(testBoard, moveIndex);
     score += enabledMoves * 3;
 
-    // 4. Prefer moves that create territory (isolated areas)
+    // 5. Prefer moves that create territory (isolated areas)
     const territoryScore = this.evaluateTerritory(testBoard, moveIndex, 2);
     score += territoryScore * 4;
 
-    // 5. Block opponent from creating large territories
+    // 6. Block opponent from creating large territories
     const blockingScore = this.evaluateOpponentBlocking(testBoard, moveIndex);
     score += blockingScore * 6;
 
+    // 7. Counter opponent edge control patterns
+    const edgeCounterScore = this.evaluateEdgeCounterStrategy(testBoard, moveIndex);
+    score += edgeCounterScore;
+
+    // 8. Prevent opponent corner control
+    const cornerDefenseScore = this.evaluateCornerDefense(testBoard, moveIndex);
+    score += cornerDefenseScore;
+
     return score;
+  }
+
+  getCenterControlValue(row, col) {
+    // Enhanced center control that considers edge pressure
+    const distanceFromCenter = Math.abs(row - 2) + Math.abs(col - 2);
+    const centerScore = (4 - distanceFromCenter) * 2;
+    
+    // Bonus for key strategic positions that control center while countering edges
+    const keyPositions = [
+      {row: 1, col: 1}, {row: 1, col: 3}, 
+      {row: 3, col: 1}, {row: 3, col: 3},  // Inner corners
+      {row: 2, col: 1}, {row: 2, col: 3},
+      {row: 1, col: 2}, {row: 3, col: 2}   // Center edges
+    ];
+    
+    for (let pos of keyPositions) {
+      if (row === pos.row && col === pos.col) {
+        return centerScore + 8; // Extra bonus for key control positions
+      }
+    }
+    
+    return centerScore;
+  }
+
+  evaluateEdgeBlocking(testBoard, moveIndex) {
+    let blockingScore = 0;
+    const row = Math.floor(moveIndex / 5);
+    const col = moveIndex % 5;
+    
+    // Check if this move blocks opponent edge formations
+    const opponentEdgeSquares = this.getOpponentEdgeSquares();
+    
+    // If opponent has edge pieces, prioritize moves that limit their expansion
+    if (opponentEdgeSquares.length > 0) {
+      // High value for moves that cut off edge expansion routes
+      const edgeExpansionBlocked = this.countsBlockedEdgeExpansion(testBoard, moveIndex, opponentEdgeSquares);
+      blockingScore += edgeExpansionBlocked * 12;
+      
+      // Bonus for moves that force opponent away from edges
+      if (this.isStrategicEdgeBlocker(row, col, opponentEdgeSquares)) {
+        blockingScore += 15;
+      }
+    }
+    
+    return blockingScore;
+  }
+
+  getOpponentEdgeSquares() {
+    const edgeSquares = [];
+    for (let i = 0; i < 25; i++) {
+      if (this.board[i] === 1) { // Human player
+        const row = Math.floor(i / 5);
+        const col = i % 5;
+        // Check if it's on an edge
+        if (row === 0 || row === 4 || col === 0 || col === 4) {
+          edgeSquares.push({index: i, row, col});
+        }
+      }
+    }
+    return edgeSquares;
+  }
+
+  countsBlockedEdgeExpansion(testBoard, moveIndex, opponentEdgeSquares) {
+    let blockedRoutes = 0;
+    const row = Math.floor(moveIndex / 5);
+    const col = moveIndex % 5;
+    
+    for (let edgeSquare of opponentEdgeSquares) {
+      // Check if this move blocks potential expansion from this edge square
+      const distance = Math.abs(row - edgeSquare.row) + Math.abs(col - edgeSquare.col);
+      if (distance <= 2) { // Close enough to interfere
+        blockedRoutes++;
+      }
+    }
+    
+    return blockedRoutes;
+  }
+
+  isStrategicEdgeBlocker(row, col, opponentEdgeSquares) {
+    // Returns true if this position strategically blocks multiple edge routes
+    let routesBlocked = 0;
+    
+    for (let edgeSquare of opponentEdgeSquares) {
+      // Check if this position is on a key path from edge to center
+      if (this.isOnKeyPath(row, col, edgeSquare.row, edgeSquare.col)) {
+        routesBlocked++;
+      }
+    }
+    
+    return routesBlocked >= 2;
+  }
+
+  isOnKeyPath(row, col, edgeRow, edgeCol) {
+    // Simple path checking - is this position between edge and center?
+    const centerRow = 2, centerCol = 2;
+    
+    // Check if position is roughly on the path from edge to center
+    const isOnRowPath = (row >= Math.min(edgeRow, centerRow) && row <= Math.max(edgeRow, centerRow));
+    const isOnColPath = (col >= Math.min(edgeCol, centerCol) && col <= Math.max(edgeCol, centerCol));
+    
+    return isOnRowPath && isOnColPath;
+  }
+
+  evaluateEdgeCounterStrategy(testBoard, moveIndex) {
+    let counterScore = 0;
+    const row = Math.floor(moveIndex / 5);
+    const col = moveIndex % 5;
+    
+    // Count opponent pieces on edges
+    let opponentEdgeCount = 0;
+    let opponentCornerCount = 0;
+    
+    for (let i = 0; i < 25; i++) {
+      if (this.board[i] === 1) {
+        const r = Math.floor(i / 5);
+        const c = i % 5;
+        
+        if ((r === 0 || r === 4) && (c === 0 || c === 4)) {
+          opponentCornerCount++; // Corner
+        } else if (r === 0 || r === 4 || c === 0 || c === 4) {
+          opponentEdgeCount++; // Edge (not corner)
+        }
+      }
+    }
+    
+    // If opponent is playing edge strategy, counter with center control
+    if (opponentEdgeCount >= 2) {
+      const distanceFromCenter = Math.abs(row - 2) + Math.abs(col - 2);
+      counterScore += (4 - distanceFromCenter) * 5; // Strong center preference
+    }
+    
+    // If opponent has corners, block their edge connections
+    if (opponentCornerCount >= 1) {
+      if (this.isEdgeConnectionBlocker(row, col)) {
+        counterScore += 20;
+      }
+    }
+    
+    return counterScore;
+  }
+
+  isEdgeConnectionBlocker(row, col) {
+    // Key positions that block corner-to-corner or corner-to-edge connections
+    const keyBlockers = [
+      {row: 0, col: 1}, {row: 0, col: 2}, {row: 0, col: 3}, // Top edge connectors
+      {row: 4, col: 1}, {row: 4, col: 2}, {row: 4, col: 3}, // Bottom edge connectors
+      {row: 1, col: 0}, {row: 2, col: 0}, {row: 3, col: 0}, // Left edge connectors
+      {row: 1, col: 4}, {row: 2, col: 4}, {row: 3, col: 4}, // Right edge connectors
+    ];
+    
+    return keyBlockers.some(pos => pos.row === row && pos.col === col);
+  }
+
+  evaluateCornerDefense(testBoard, moveIndex) {
+    let defenseScore = 0;
+    const row = Math.floor(moveIndex / 5);
+    const col = moveIndex % 5;
+    
+    // Check if opponent is threatening corner control
+    const corners = [{row: 0, col: 0}, {row: 0, col: 4}, {row: 4, col: 0}, {row: 4, col: 4}];
+    
+    for (let corner of corners) {
+      const cornerIndex = corner.row * 5 + corner.col;
+      if (this.board[cornerIndex] === null) {
+        // Corner is empty, check if opponent can reach it
+        if (this.canOpponentReachCorner(corner)) {
+          // This move should block access to that corner
+          const distance = Math.abs(row - corner.row) + Math.abs(col - corner.col);
+          if (distance <= 2) {
+            defenseScore += 10;
+          }
+        }
+      }
+    }
+    
+    return defenseScore;
+  }
+
+  canOpponentReachCorner(corner) {
+    // Check if opponent has pieces that could potentially reach this corner
+    for (let i = 0; i < 25; i++) {
+      if (this.board[i] === 1) {
+        const row = Math.floor(i / 5);
+        const col = i % 5;
+        const distance = Math.abs(row - corner.row) + Math.abs(col - corner.col);
+        if (distance <= 3) {
+          return true; // Close enough to threaten
+        }
+      }
+    }
+    return false;
   }
 
   countBlockedOpponentMoves(testBoard, moveIndex) {
