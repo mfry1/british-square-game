@@ -2522,8 +2522,8 @@ class BritishSquareGame {
         } wins the match! 🏆</h3>`
       : "";
     const button = matchWinner
-      ? `<button class='btn' onclick="this.closest('.modal').remove(); if(typeof gameManager!=='undefined'){ gameManager.currentGame.resetMatch(); } else { game.resetMatch(); }">New Match</button>`
-      : `<button class='btn' onclick="this.closest('.modal').remove(); if(typeof gameManager!=='undefined'){ gameManager.currentGame.newRound(); } else { game.newRound(); }">Next Round</button>`;
+      ? `<button class='btn' onclick="const c=this.closest('.round-summary-overlay'); if(c) c.remove(); if(typeof gameManager!=='undefined'){ gameManager.currentGame.resetMatch(); } else { game.resetMatch(); }">New Match</button>`
+      : `<button class='btn' onclick="const c=this.closest('.round-summary-overlay'); if(c) c.remove(); if(typeof gameManager!=='undefined'){ gameManager.currentGame.newRound(); } else { game.newRound(); }">Next Round</button>`;
     modal.innerHTML = `<div style='display:flex; flex-direction:column; gap:6px;'>
       <div style='font-size:1.15rem; font-weight:700; color:#1e3c72;'>Round ${round} Complete</div>
       <div style='font-weight:600;'>${header}</div>
