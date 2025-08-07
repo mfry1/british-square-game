@@ -213,7 +213,7 @@ class BritishSquareOnline extends BritishSquareGame {
         this.showRoomInfo();
         document.getElementById("current-room-code").textContent = data.roomId;
         this.updatePlayerStatus();
-        
+
         // Automatically set as ready
         this.sendReadyStatus(true);
         break;
@@ -226,10 +226,10 @@ class BritishSquareOnline extends BritishSquareGame {
         this.showRoomInfo();
         document.getElementById("current-room-code").textContent = data.roomId;
         this.updatePlayerStatus();
-        
+
         // Automatically set as ready
         this.sendReadyStatus(true);
-        
+
         // Update game state if game is in progress
         if (data.gameState) {
           this.syncGameState(data.gameState);
@@ -262,7 +262,7 @@ class BritishSquareOnline extends BritishSquareGame {
         this.syncGameState(data.gameState);
         this.showGameStatus();
         this.showMessage("Game started!", "success");
-        
+
         // Ensure game is marked as active
         this.gameActive = true;
         this.updateValidMoves();
@@ -462,7 +462,7 @@ class BritishSquareOnline extends BritishSquareGame {
       player1Status.textContent = `Player 1 (You): Ready`;
       player2Status.textContent =
         this.roomId && this.getOpponentCount() > 0
-          ? `Player 2: ${this.opponentReady ? "Ready" : "Waiting..."}` 
+          ? `Player 2: ${this.opponentReady ? "Ready" : "Waiting..."}`
           : "Player 2: Waiting...";
     } else if (this.playerNumber === 2) {
       player1Status.textContent =
@@ -471,11 +471,14 @@ class BritishSquareOnline extends BritishSquareGame {
           : "Player 1: Waiting...";
       player2Status.textContent = `Player 2 (You): Ready`;
     }
-    
+
     // Show waiting message when both players are present but not both ready
     if (this.roomId && this.getOpponentCount() > 0) {
       if (this.playerReady && this.opponentReady) {
-        this.showMessage("Both players ready! Game will start automatically.", "success");
+        this.showMessage(
+          "Both players ready! Game will start automatically.",
+          "success"
+        );
       }
     }
   }
@@ -551,21 +554,8 @@ class BritishSquareOnline extends BritishSquareGame {
       square.classList.remove("invalid", "center-blocked");
     });
 
-    // In online mode, always show valid moves (no AI turn restrictions)
-    for (let i = 0; i < 25; i++) {
-      if (this.board[i] === null) {
-        // Only check empty squares
-        const square = document.querySelector(`[data-index="${i}"]`);
-
-        if (!this.isValidMove(i)) {
-          if (this.currentPlayer === 1 && this.moveCount === 0 && i === 12) {
-            square.classList.add("center-blocked");
-          } else {
-            square.classList.add("invalid");
-          }
-        }
-      }
-    }
+    // Visual indicators for invalid moves are now hidden for a cleaner look
+    // The game still validates moves internally when clicked
   }
 
   // Handle square clicks for online mode
@@ -595,7 +585,10 @@ class BritishSquareOnline extends BritishSquareGame {
 
     // Check if move is valid using the same logic as the base game
     if (!this.isValidMove(index)) {
-      this.showMessage("Invalid move! Cannot place next to opponent pieces.", "error");
+      this.showMessage(
+        "Invalid move! Cannot place next to opponent pieces.",
+        "error"
+      );
       return;
     }
 

@@ -75,7 +75,7 @@ class BritishSquare3D extends BritishSquareGame {
     // Event listeners for both mouse and touch
     canvas.addEventListener("click", (event) => this.on3DClick(event));
     canvas.addEventListener("mousemove", (event) => this.on3DMouseMove(event));
-    
+
     // Touch event listener for mobile tile selection - use touchstart for better iOS compatibility
     canvas.addEventListener("touchstart", (event) => {
       // Only handle single touch for tile selection
@@ -169,17 +169,25 @@ class BritishSquare3D extends BritishSquareGame {
     });
 
     canvas.addEventListener("touchmove", (event) => {
-      if (this.cameraControls && this.cameraControls.mouseDown && event.touches.length === 1) {
+      if (
+        this.cameraControls &&
+        this.cameraControls.mouseDown &&
+        event.touches.length === 1
+      ) {
         // Now we know it's camera movement, so prevent default
         event.preventDefault();
-        
+
         const deltaX = event.touches[0].clientX - this.cameraControls.mouseX;
         const deltaY = event.touches[0].clientY - this.cameraControls.mouseY;
 
         // Check if this is a significant movement (not just a tap)
-        const totalMoveX = Math.abs(event.touches[0].clientX - this.cameraControls.touchStartX);
-        const totalMoveY = Math.abs(event.touches[0].clientY - this.cameraControls.touchStartY);
-        
+        const totalMoveX = Math.abs(
+          event.touches[0].clientX - this.cameraControls.touchStartX
+        );
+        const totalMoveY = Math.abs(
+          event.touches[0].clientY - this.cameraControls.touchStartY
+        );
+
         if (totalMoveX > 5 || totalMoveY > 5) {
           this.cameraControls.touchMoved = true;
         }
@@ -394,35 +402,14 @@ class BritishSquare3D extends BritishSquareGame {
       return;
     }
 
-    // Reset all square colors
+    // Reset all square colors to default
     this.squares.forEach((square) => {
       square.material.color.setHex(0xf5deb3);
       square.material.opacity = 1.0;
     });
 
-    // Don't show valid move indicators when AI is thinking/making a move
-    if (this.gameMode === "ai" && this.currentPlayer === 2) {
-      return;
-    }
-
-    // Mark invalid moves
-    for (let i = 0; i < 25; i++) {
-      if (this.board[i] === null) {
-        const square = this.squares[i];
-
-        if (!this.isValidMove(i)) {
-          if (this.currentPlayer === 1 && this.moveCount === 0 && i === 12) {
-            // Center blocked - yellow
-            square.material.color.setHex(0xffd700);
-            square.material.opacity = 0.7;
-          } else {
-            // Invalid - red tint
-            square.material.color.setHex(0xff6b6b);
-            square.material.opacity = 0.5;
-          }
-        }
-      }
-    }
+    // Visual indicators for invalid moves are now hidden for a cleaner 3D look
+    // The game still validates moves internally when clicked
   }
 
   handleTouchSelection(event) {
@@ -442,20 +429,21 @@ class BritishSquare3D extends BritishSquareGame {
     // Set up a one-time touchend listener to handle the tap
     const handleTouchEnd = (endEvent) => {
       endEvent.preventDefault();
-      
+
       // Remove the listener
       this.renderer.domElement.removeEventListener("touchend", handleTouchEnd);
-      
+
       const endTime = Date.now();
       const duration = endTime - startTime;
-      
+
       // Only treat as tap if it was quick and didn't move much
       if (duration < 300 && endEvent.changedTouches.length === 1) {
         const endTouch = endEvent.changedTouches[0];
         const moveDistance = Math.sqrt(
-          Math.pow(endTouch.clientX - startX, 2) + Math.pow(endTouch.clientY - startY, 2)
+          Math.pow(endTouch.clientX - startX, 2) +
+            Math.pow(endTouch.clientY - startY, 2)
         );
-        
+
         // If the touch didn't move much, treat it as a tile selection
         if (moveDistance < 10) {
           this.processTileSelection(endTouch);
@@ -469,11 +457,11 @@ class BritishSquare3D extends BritishSquareGame {
 
   processTileSelection(touch) {
     const rect = this.renderer.domElement.getBoundingClientRect();
-    
+
     // Calculate touch position relative to canvas
     const x = touch.clientX - rect.left;
     const y = touch.clientY - rect.top;
-    
+
     // Convert to normalized device coordinates
     const mouse = new THREE.Vector2();
     mouse.x = (x / rect.width) * 2 - 1;
@@ -515,26 +503,26 @@ class BritishSquare3D extends BritishSquareGame {
 
     // Only handle single touch tap for tile selection
     if (event.changedTouches.length !== 1) return;
-    
+
     event.preventDefault();
-    
+
     // Check if this was a camera drag (movement) rather than a tap
     if (this.cameraControls) {
       const touchDuration = Date.now() - this.cameraControls.touchStartTime;
-      
+
       // If the touch moved significantly or lasted too long, don't select a tile
       if (this.cameraControls.touchMoved || touchDuration > 300) {
         return;
       }
     }
-    
+
     const touch = event.changedTouches[0];
     const rect = this.renderer.domElement.getBoundingClientRect();
-    
+
     // Calculate touch position relative to canvas
     const x = touch.clientX - rect.left;
     const y = touch.clientY - rect.top;
-    
+
     // Convert to normalized device coordinates
     const mouse = new THREE.Vector2();
     mouse.x = (x / rect.width) * 2 - 1;
