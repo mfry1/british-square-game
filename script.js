@@ -7,9 +7,9 @@ class BritishSquareGame {
     this.passCount = 0;
     this.gameMode = "ai"; // 'pvp' or 'ai'
     this.aiDifficulty = "hardv3"; // default to newest elite AI
-  // Multi-round match: cumulative net difference points, first to break 7 wins
-  this.matchScore = {1: 0, 2: 0};
-  this.roundNumber = 1;
+    // Multi-round match: cumulative net difference points, first to break 7 wins
+    this.matchScore = { 1: 0, 2: 0 };
+    this.roundNumber = 1;
 
     this.initializeGame();
     this.attachEventListeners();
@@ -301,7 +301,14 @@ class BritishSquareGame {
 
       // Aspiration window re-search logic
       while (true) {
-        const result = this.negamaxRoot(depth, alpha, beta, deadline, validMoves, prevBest);
+        const result = this.negamaxRoot(
+          depth,
+          alpha,
+          beta,
+          deadline,
+          validMoves,
+          prevBest
+        );
         score = result.score;
         move = result.move;
 
@@ -440,7 +447,13 @@ class BritishSquareGame {
     if (depth >= 3 && this.countEmptySquares() > 8) {
       // Try a null move: skip turn (if passing is legal conceptually). We simulate by toggling player without placing.
       this.currentPlayer = this.currentPlayer === 1 ? 2 : 1;
-      const nullScore = -this.negamax(depth - 3, -beta, -beta + 1, deadline, ply + 1); // reduction R=2 (depth-1-2)
+      const nullScore = -this.negamax(
+        depth - 3,
+        -beta,
+        -beta + 1,
+        deadline,
+        ply + 1
+      ); // reduction R=2 (depth-1-2)
       this.currentPlayer = this.currentPlayer === 1 ? 2 : 1;
       if (nullScore >= beta) {
         return beta; // fail-hard beta cutoff
@@ -470,7 +483,10 @@ class BritishSquareGame {
       // Selective / extension heuristics
       let extension = 0;
       // Extension: taking center late, or move blocks >=3 opponent moves
-      if ((move === 12 && this.board[12] === null) || this.countBlockedOpponentMoves([...this.board], move) >= 3) {
+      if (
+        (move === 12 && this.board[12] === null) ||
+        this.countBlockedOpponentMoves([...this.board], move) >= 3
+      ) {
         extension = 1;
       }
 
@@ -506,9 +522,9 @@ class BritishSquareGame {
     }
 
     // Store TT entry
-  let flag = "EXACT";
-  if (value <= originalAlpha) flag = "UPPER"; // fail-low
-  else if (value >= originalBeta) flag = "LOWER"; // fail-high
+    let flag = "EXACT";
+    if (value <= originalAlpha) flag = "UPPER"; // fail-low
+    else if (value >= originalBeta) flag = "LOWER"; // fail-high
     this.hardV3.tt.set(zobrist, { depth, flag, score: value, move: bestMove });
     return value;
   }
@@ -571,15 +587,15 @@ class BritishSquareGame {
     // Components: material (piece count), mobility, territory, centrality, opponent blocking, pattern bonuses.
     const p1 = this.board.filter((c) => c === 1).length;
     const p2 = this.board.filter((c) => c === 2).length;
-  const empties = this.countEmptySquares();
-  // Game phase factor (0 = opening, 1 = endgame)
-  const phase = 1 - empties / 25;
-  let score = (p2 - p1) * (120 + phase * 40); // piece importance grows slightly
+    const empties = this.countEmptySquares();
+    // Game phase factor (0 = opening, 1 = endgame)
+    const phase = 1 - empties / 25;
+    let score = (p2 - p1) * (120 + phase * 40); // piece importance grows slightly
 
     // Mobility (future options)
     const p1Mob = this.getValidMovesForPlayer(1).length;
     const p2Mob = this.getValidMovesForPlayer(2).length;
-  score += (p2Mob - p1Mob) * (15 + phase * 30); // mobility weight increases midgame
+    score += (p2Mob - p1Mob) * (15 + phase * 30); // mobility weight increases midgame
 
     // Central control & strategic squares
     const strategicWeights = [12, 7, 11, 13, 17, 6, 8, 16, 18];
@@ -597,7 +613,9 @@ class BritishSquareGame {
     score += (this.evaluateInfluenceMap(2) - this.evaluateInfluenceMap(1)) * 10;
 
     // Edge wall potential
-    score += (this.evaluateEdgeWalls(2) - this.evaluateEdgeWalls(1)) * (8 + phase * 10);
+    score +=
+      (this.evaluateEdgeWalls(2) - this.evaluateEdgeWalls(1)) *
+      (8 + phase * 10);
 
     // Penalty if AI lags midgame
     if (this.moveCount > 8 && p2 < p1) score -= (p1 - p2) * 40;
@@ -616,11 +634,15 @@ class BritishSquareGame {
     let bonus = 0;
     for (let i = 0; i < 25; i++) {
       if (this.board[i] !== player) continue;
-      const r = Math.floor(i / 5), c = i % 5;
-      const neighbors = [[r+1,c],[r,c+1]]; // avoid double-counting by only down/right
-      for (let [nr,nc] of neighbors) {
-        if (nr>=0 && nr<5 && nc>=0 && nc<5) {
-          const ni = nr*5+nc;
+      const r = Math.floor(i / 5),
+        c = i % 5;
+      const neighbors = [
+        [r + 1, c],
+        [r, c + 1],
+      ]; // avoid double-counting by only down/right
+      for (let [nr, nc] of neighbors) {
+        if (nr >= 0 && nr < 5 && nc >= 0 && nc < 5) {
+          const ni = nr * 5 + nc;
           if (this.board[ni] === player) bonus += 3;
         }
       }
@@ -630,17 +652,19 @@ class BritishSquareGame {
 
   orderRootMoves(moves, depth, prevBest) {
     // Prioritize previous best, then transposition-guided ordering
-    const scored = moves.map(m => ({move: m, score: 0}));
+    const scored = moves.map((m) => ({ move: m, score: 0 }));
     for (let obj of scored) {
       if (prevBest === obj.move) obj.score += 60000;
       obj.score += this.evaluateMove(obj.move);
     }
-    scored.sort((a,b)=> b.score - a.score);
-    return scored.map(o=>o.move);
+    scored.sort((a, b) => b.score - a.score);
+    return scored.map((o) => o.move);
   }
 
   countEmptySquares() {
-    let c = 0; for (let i=0;i<25;i++) if (this.board[i] === null) c++; return c;
+    let c = 0;
+    for (let i = 0; i < 25; i++) if (this.board[i] === null) c++;
+    return c;
   }
 
   solveEndgame(validMoves, empties) {
@@ -651,9 +675,12 @@ class BritishSquareGame {
       const state = this.pushMove(move);
       const score = -this.endgameDFS(empties - 1);
       this.popMove(state);
-      if (score > bestScore) { bestScore = score; bestMove = move; }
+      if (score > bestScore) {
+        bestScore = score;
+        bestMove = move;
+      }
     }
-    return {move: bestMove, score: bestScore};
+    return { move: bestMove, score: bestScore };
   }
 
   endgameDFS(remaining) {
@@ -2444,7 +2471,8 @@ class BritishSquareGame {
     if (winner) this.matchScore[winner] += net; // ties score nothing
 
     const target = 7; // must exceed 7
-    const matchWinner = this.matchScore[1] > target ? 1 : (this.matchScore[2] > target ? 2 : null);
+    const matchWinner =
+      this.matchScore[1] > target ? 1 : this.matchScore[2] > target ? 2 : null;
 
     setTimeout(() => {
       this.showRoundModal({
@@ -2460,20 +2488,37 @@ class BritishSquareGame {
     }, 400);
   }
   showRoundModal(ctx) {
-    const { round, roundWinner, p1Pieces, p2Pieces, netAwarded, matchScore, matchWinner, message } = ctx;
-    const modal = document.createElement('div');
-    modal.className = 'modal';
-    modal.style.cssText = 'display:block !important;';
-    const p1Label = this.gameMode === 'ai' ? 'You' : 'Player 1';
-    const p2Label = this.gameMode === 'ai' ? 'AI' : 'Player 2';
+    const {
+      round,
+      roundWinner,
+      p1Pieces,
+      p2Pieces,
+      netAwarded,
+      matchScore,
+      matchWinner,
+      message,
+    } = ctx;
+    const modal = document.createElement("div");
+    modal.className = "modal";
+    modal.style.cssText = "display:block !important;";
+    const p1Label = this.gameMode === "ai" ? "You" : "Player 1";
+    const p2Label = this.gameMode === "ai" ? "AI" : "Player 2";
     let header;
     if (roundWinner === 1) header = `${p1Label} wins the round!`;
     else if (roundWinner === 2) header = `${p2Label} wins the round!`;
-    else header = 'Round is a tie.';
+    else header = "Round is a tie.";
     const piecesLine = `Pieces — ${p1Label}: ${p1Pieces} | ${p2Label}: ${p2Pieces}`;
-    const netLine = roundWinner ? `Net points awarded: +${netAwarded} to ${roundWinner === 1 ? p1Label : p2Label}` : 'No points awarded (tie).';
+    const netLine = roundWinner
+      ? `Net points awarded: +${netAwarded} to ${
+          roundWinner === 1 ? p1Label : p2Label
+        }`
+      : "No points awarded (tie).";
     const matchLine = `Match Score — ${p1Label}: ${matchScore[1]} | ${p2Label}: ${matchScore[2]} (First to break 7 wins)`;
-    const finalLine = matchWinner ? `<h3>🏆 ${(matchWinner===1? p1Label : p2Label)} wins the match! 🏆</h3>` : '';
+    const finalLine = matchWinner
+      ? `<h3>🏆 ${
+          matchWinner === 1 ? p1Label : p2Label
+        } wins the match! 🏆</h3>`
+      : "";
     const button = matchWinner
       ? `<button class='btn' onclick="this.closest('.modal').remove(); if(typeof gameManager!=='undefined'){ gameManager.currentGame.resetMatch(); } else { game.resetMatch(); }">New Match</button>`
       : `<button class='btn' onclick="this.closest('.modal').remove(); if(typeof gameManager!=='undefined'){ gameManager.currentGame.newRound(); } else { game.newRound(); }">Next Round</button>`;
@@ -2540,13 +2585,15 @@ class BritishSquareGame {
     document.getElementById("player1-score").textContent = player1Count;
     document.getElementById("player2-score").textContent = player2Count;
 
-  // Match / Round indicators (if elements exist)
-  const roundEl = document.getElementById('round-indicator');
-  if (roundEl) roundEl.textContent = `Round ${this.roundNumber}`;
-  const p1MatchEl = document.getElementById('match-score-p1');
-  const p2MatchEl = document.getElementById('match-score-p2');
-  if (p1MatchEl) p1MatchEl.textContent = `${player1Label}: ${this.matchScore[1]}`;
-  if (p2MatchEl) p2MatchEl.textContent = `${player2Label}: ${this.matchScore[2]}`;
+    // Match / Round indicators (if elements exist)
+    const roundEl = document.getElementById("round-indicator");
+    if (roundEl) roundEl.textContent = `Round ${this.roundNumber}`;
+    const p1MatchEl = document.getElementById("match-score-p1");
+    const p2MatchEl = document.getElementById("match-score-p2");
+    if (p1MatchEl)
+      p1MatchEl.textContent = `${player1Label}: ${this.matchScore[1]}`;
+    if (p2MatchEl)
+      p2MatchEl.textContent = `${player2Label}: ${this.matchScore[2]}`;
 
     // Update game status
     const statusElement = document.getElementById("game-status");
@@ -2594,7 +2641,7 @@ class BritishSquareGame {
   }
 
   resetMatch() {
-    this.matchScore = {1:0,2:0};
+    this.matchScore = { 1: 0, 2: 0 };
     this.roundNumber = 1;
     this.newGame();
   }

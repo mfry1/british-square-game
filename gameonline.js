@@ -421,10 +421,13 @@ class BritishSquareOnline extends BritishSquareGame {
 
     // Emulate round end using match scoring from base class
     let net = 0;
-    if (winner === 1) net = player1Count - player2Count; else if (winner === 2) net = player2Count - player1Count; if (net < 0) net = 0;
+    if (winner === 1) net = player1Count - player2Count;
+    else if (winner === 2) net = player2Count - player1Count;
+    if (net < 0) net = 0;
     if (winner) this.matchScore[winner] += net;
     const target = 7;
-    const matchWinner = this.matchScore[1] > target ? 1 : (this.matchScore[2] > target ? 2 : null);
+    const matchWinner =
+      this.matchScore[1] > target ? 1 : this.matchScore[2] > target ? 2 : null;
     this.showRoundModal({
       round: this.roundNumber,
       roundWinner: winner,
