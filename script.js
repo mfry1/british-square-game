@@ -7,6 +7,9 @@ class BritishSquareGame {
     this.passCount = 0;
     this.gameMode = "ai"; // 'pvp' or 'ai'
     this.aiDifficulty = "hardv3"; // default to newest elite AI
+  // Multi-round match: cumulative net difference points, first to break 7 wins
+  this.matchScore = {1: 0, 2: 0};
+  this.roundNumber = 1;
 
     this.initializeGame();
     this.attachEventListeners();
@@ -100,11 +103,7 @@ class BritishSquareGame {
     }
   }
 
-  // Test method to check if modal works
-  testModal() {
-    console.log("Testing modal...");
-    this.showWinModal(1, 5, 3, "Test message - Player 1 wins!");
-  }
+  // (Removed deprecated testModal that referenced old single-round modal)
 
   makeAIMove() {
     // Add a small delay to make AI moves feel more natural
@@ -269,7 +268,14 @@ class BritishSquareGame {
       if (book !== -1) return book;
     }
 
-    const timeLimitMs = 2500; // configurable thinking time
+    // Endgame exact solver when few empty squares remain
+    const empties = this.countEmptySquares();
+    if (empties <= 6) {
+      const exact = this.solveEndgame(validMoves, empties);
+      if (exact.move !== -1) return exact.move;
+    }
+
+    const timeLimitMs = 3200; // slightly longer thinking time
     const startTime = performance.now();
     const deadline = startTime + timeLimitMs;
 
@@ -283,6 +289,8 @@ class BritishSquareGame {
     // Principal Variation storage
     this.hardV3.pv = [];
 
+    let prevBest = null;
+
     for (let depth = 1; depth <= MAX_DEPTH; depth++) {
       if (performance.now() > deadline) break;
 
@@ -293,13 +301,7 @@ class BritishSquareGame {
 
       // Aspiration window re-search logic
       while (true) {
-        const result = this.negamaxRoot(
-          depth,
-          alpha,
-          beta,
-          deadline,
-          validMoves
-        );
+        const result = this.negamaxRoot(depth, alpha, beta, deadline, validMoves, prevBest);
         score = result.score;
         move = result.move;
 
@@ -323,6 +325,7 @@ class BritishSquareGame {
         bestMove = move;
       }
       lastScore = score;
+      prevBest = bestMove;
 
       // If decisive score found (very large), stop early
       if (Math.abs(bestScore) > 9000) break;
@@ -365,10 +368,10 @@ class BritishSquareGame {
     return key.toString();
   }
 
-  negamaxRoot(depth, alpha, beta, deadline, rootMoves) {
+  negamaxRoot(depth, alpha, beta, deadline, rootMoves, prevBest) {
     let bestScore = -Infinity;
     let bestMove = rootMoves[0];
-    const ordered = this.orderHardV3Moves(rootMoves, depth, null);
+    const ordered = this.orderRootMoves(rootMoves, depth, prevBest);
     for (let move of ordered) {
       if (performance.now() > deadline) break;
       const state = this.pushMove(move);
@@ -419,6 +422,9 @@ class BritishSquareGame {
       return this.quiescenceV3(alpha, beta, deadline);
     }
 
+    const originalAlpha = alpha;
+    const originalBeta = beta;
+
     const zobrist = this.computeZobristKey();
     const ttEntry = this.hardV3.tt.get(zobrist);
     if (ttEntry && ttEntry.depth >= depth) {
@@ -428,6 +434,17 @@ class BritishSquareGame {
       else if (ttEntry.flag === "UPPER" && ttEntry.score < beta)
         beta = ttEntry.score;
       if (alpha >= beta) return ttEntry.score;
+    }
+
+    // Null move pruning (conservative). Avoid in endgame (few empties) or shallow depth.
+    if (depth >= 3 && this.countEmptySquares() > 8) {
+      // Try a null move: skip turn (if passing is legal conceptually). We simulate by toggling player without placing.
+      this.currentPlayer = this.currentPlayer === 1 ? 2 : 1;
+      const nullScore = -this.negamax(depth - 3, -beta, -beta + 1, deadline, ply + 1); // reduction R=2 (depth-1-2)
+      this.currentPlayer = this.currentPlayer === 1 ? 2 : 1;
+      if (nullScore >= beta) {
+        return beta; // fail-hard beta cutoff
+      }
     }
 
     let moves = this.getValidMovesForPlayer(this.currentPlayer);
@@ -450,11 +467,17 @@ class BritishSquareGame {
       const move = moves[i];
       const state = this.pushMove(move);
 
+      // Selective / extension heuristics
+      let extension = 0;
+      // Extension: taking center late, or move blocks >=3 opponent moves
+      if ((move === 12 && this.board[12] === null) || this.countBlockedOpponentMoves([...this.board], move) >= 3) {
+        extension = 1;
+      }
+
       // Late Move Reduction (skip or reduce depth for later, less-promising moves)
       let newDepth = depth - 1;
-      if (i > 4 && depth > 2) {
-        newDepth = depth - 2; // reduce
-      }
+      if (i > 4 && depth > 2 && extension === 0) newDepth = depth - 2; // reduce
+      if (extension) newDepth = depth - 1 + extension; // extend
 
       let score = -this.negamax(newDepth, -beta, -alpha, deadline, ply + 1);
 
@@ -483,9 +506,9 @@ class BritishSquareGame {
     }
 
     // Store TT entry
-    let flag = "EXACT";
-    if (value <= alpha) flag = "UPPER";
-    else if (value >= beta) flag = "LOWER";
+  let flag = "EXACT";
+  if (value <= originalAlpha) flag = "UPPER"; // fail-low
+  else if (value >= originalBeta) flag = "LOWER"; // fail-high
     this.hardV3.tt.set(zobrist, { depth, flag, score: value, move: bestMove });
     return value;
   }
@@ -548,12 +571,15 @@ class BritishSquareGame {
     // Components: material (piece count), mobility, territory, centrality, opponent blocking, pattern bonuses.
     const p1 = this.board.filter((c) => c === 1).length;
     const p2 = this.board.filter((c) => c === 2).length;
-    let score = (p2 - p1) * 120; // emphasize piece lead
+  const empties = this.countEmptySquares();
+  // Game phase factor (0 = opening, 1 = endgame)
+  const phase = 1 - empties / 25;
+  let score = (p2 - p1) * (120 + phase * 40); // piece importance grows slightly
 
     // Mobility (future options)
     const p1Mob = this.getValidMovesForPlayer(1).length;
     const p2Mob = this.getValidMovesForPlayer(2).length;
-    score += (p2Mob - p1Mob) * 25;
+  score += (p2Mob - p1Mob) * (15 + phase * 30); // mobility weight increases midgame
 
     // Central control & strategic squares
     const strategicWeights = [12, 7, 11, 13, 17, 6, 8, 16, 18];
@@ -571,12 +597,85 @@ class BritishSquareGame {
     score += (this.evaluateInfluenceMap(2) - this.evaluateInfluenceMap(1)) * 10;
 
     // Edge wall potential
-    score += (this.evaluateEdgeWalls(2) - this.evaluateEdgeWalls(1)) * 12;
+    score += (this.evaluateEdgeWalls(2) - this.evaluateEdgeWalls(1)) * (8 + phase * 10);
 
     // Penalty if AI lags midgame
     if (this.moveCount > 8 && p2 < p1) score -= (p1 - p2) * 40;
 
+    // Tempo bonus: whose turn (favor side to move slightly)
+    if (this.currentPlayer === 2) score += 6;
+
+    // Compactness / clustering: reward AI for connected groups
+    score += this.evaluateClusterBonus(2) - this.evaluateClusterBonus(1);
+
     return score;
+  }
+
+  evaluateClusterBonus(player) {
+    // Counts adjacent (orthogonal) friendly pairs to encourage cohesive shape
+    let bonus = 0;
+    for (let i = 0; i < 25; i++) {
+      if (this.board[i] !== player) continue;
+      const r = Math.floor(i / 5), c = i % 5;
+      const neighbors = [[r+1,c],[r,c+1]]; // avoid double-counting by only down/right
+      for (let [nr,nc] of neighbors) {
+        if (nr>=0 && nr<5 && nc>=0 && nc<5) {
+          const ni = nr*5+nc;
+          if (this.board[ni] === player) bonus += 3;
+        }
+      }
+    }
+    return bonus;
+  }
+
+  orderRootMoves(moves, depth, prevBest) {
+    // Prioritize previous best, then transposition-guided ordering
+    const scored = moves.map(m => ({move: m, score: 0}));
+    for (let obj of scored) {
+      if (prevBest === obj.move) obj.score += 60000;
+      obj.score += this.evaluateMove(obj.move);
+    }
+    scored.sort((a,b)=> b.score - a.score);
+    return scored.map(o=>o.move);
+  }
+
+  countEmptySquares() {
+    let c = 0; for (let i=0;i<25;i++) if (this.board[i] === null) c++; return c;
+  }
+
+  solveEndgame(validMoves, empties) {
+    // Perform exact DFS search of remaining game tree (small) to select optimal move.
+    let bestMove = -1;
+    let bestScore = -Infinity;
+    for (let move of validMoves) {
+      const state = this.pushMove(move);
+      const score = -this.endgameDFS(empties - 1);
+      this.popMove(state);
+      if (score > bestScore) { bestScore = score; bestMove = move; }
+    }
+    return {move: bestMove, score: bestScore};
+  }
+
+  endgameDFS(remaining) {
+    if (this.checkGameEnd() || remaining === 0) {
+      return this.evaluateEndForV3();
+    }
+    const moves = this.getValidMovesForPlayer(this.currentPlayer);
+    if (moves.length === 0) {
+      // Pass
+      this.currentPlayer = this.currentPlayer === 1 ? 2 : 1;
+      const score = -this.endgameDFS(remaining);
+      this.currentPlayer = this.currentPlayer === 1 ? 2 : 1;
+      return score;
+    }
+    let value = -Infinity;
+    for (let move of moves) {
+      const state = this.pushMove(move);
+      const score = -this.endgameDFS(remaining - 1);
+      this.popMove(state);
+      if (score > value) value = score;
+    }
+    return value;
   }
 
   evaluateEndForV3() {
@@ -2337,46 +2436,59 @@ class BritishSquareGame {
       message = `It's a tie! Both players have ${player1Count} pieces.`;
     }
 
+    // Compute round net difference
+    let net = 0;
+    if (winner === 1) net = player1Count - player2Count;
+    else if (winner === 2) net = player2Count - player1Count;
+    if (net < 0) net = 0; // safety guard
+    if (winner) this.matchScore[winner] += net; // ties score nothing
+
+    const target = 7; // must exceed 7
+    const matchWinner = this.matchScore[1] > target ? 1 : (this.matchScore[2] > target ? 2 : null);
+
     setTimeout(() => {
-      this.showWinModal(winner, player1Count, player2Count, message);
-    }, 500);
+      this.showRoundModal({
+        round: this.roundNumber,
+        roundWinner: winner,
+        p1Pieces: player1Count,
+        p2Pieces: player2Count,
+        netAwarded: net,
+        matchScore: { ...this.matchScore },
+        matchWinner,
+        message,
+      });
+    }, 400);
   }
-
-  showWinModal(winner, p1Score, p2Score, message) {
-    const modal = document.createElement("div");
-    modal.className = "modal";
-    modal.style.cssText = "display: block !important;";
-
-    let winnerText;
-    if (this.gameMode === "ai") {
-      if (winner === 1) {
-        winnerText = "🎉 You Win! 🎉";
-      } else if (winner === 2) {
-        winnerText = "🤖 AI Wins! 🤖";
-      } else {
-        winnerText = "🤝 It's a Tie! 🤝";
-      }
-    } else {
-      winnerText = winner
-        ? `🎉 Player ${winner} Wins! 🎉`
-        : "🤝 It's a Tie! 🤝";
-    }
-
-    const scoreText =
-      this.gameMode === "ai"
-        ? `Final Score: You: ${p1Score} pieces | AI: ${p2Score} pieces`
-        : `Final Score: Player 1: ${p1Score} pieces | Player 2: ${p2Score} pieces`;
-
-    modal.innerHTML = `
-            <div class="modal-content">
-                <h2>${winnerText}</h2>
-                <p>${message}</p>
-                <p>${scoreText}</p>
-                <button class="btn" onclick="this.parentElement.parentElement.remove(); if(typeof gameManager !== 'undefined') { gameManager.currentGame.newGame(); } else { game.newGame(); }">Play Again</button>
-            </div>
-        `;
-
+  showRoundModal(ctx) {
+    const { round, roundWinner, p1Pieces, p2Pieces, netAwarded, matchScore, matchWinner, message } = ctx;
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.cssText = 'display:block !important;';
+    const p1Label = this.gameMode === 'ai' ? 'You' : 'Player 1';
+    const p2Label = this.gameMode === 'ai' ? 'AI' : 'Player 2';
+    let header;
+    if (roundWinner === 1) header = `${p1Label} wins the round!`;
+    else if (roundWinner === 2) header = `${p2Label} wins the round!`;
+    else header = 'Round is a tie.';
+    const piecesLine = `Pieces — ${p1Label}: ${p1Pieces} | ${p2Label}: ${p2Pieces}`;
+    const netLine = roundWinner ? `Net points awarded: +${netAwarded} to ${roundWinner === 1 ? p1Label : p2Label}` : 'No points awarded (tie).';
+    const matchLine = `Match Score — ${p1Label}: ${matchScore[1]} | ${p2Label}: ${matchScore[2]} (First to break 7 wins)`;
+    const finalLine = matchWinner ? `<h3>🏆 ${(matchWinner===1? p1Label : p2Label)} wins the match! 🏆</h3>` : '';
+    const button = matchWinner
+      ? `<button class='btn' onclick="this.closest('.modal').remove(); if(typeof gameManager!=='undefined'){ gameManager.currentGame.resetMatch(); } else { game.resetMatch(); }">New Match</button>`
+      : `<button class='btn' onclick="this.closest('.modal').remove(); if(typeof gameManager!=='undefined'){ gameManager.currentGame.newRound(); } else { game.newRound(); }">Next Round</button>`;
+    modal.innerHTML = `<div class='modal-content'>
+      <h2>Round ${round} Complete</h2>
+      <h3>${header}</h3>
+      <p>${message}</p>
+      <p>${piecesLine}</p>
+      <p>${netLine}</p>
+      <p>${matchLine}</p>
+      ${finalLine}
+      ${button}
+    </div>`;
     document.body.appendChild(modal);
+    this.updateDisplay();
   }
 
   showMessage(text, type = "info") {
@@ -2428,6 +2540,14 @@ class BritishSquareGame {
     document.getElementById("player1-score").textContent = player1Count;
     document.getElementById("player2-score").textContent = player2Count;
 
+  // Match / Round indicators (if elements exist)
+  const roundEl = document.getElementById('round-indicator');
+  if (roundEl) roundEl.textContent = `Round ${this.roundNumber}`;
+  const p1MatchEl = document.getElementById('match-score-p1');
+  const p2MatchEl = document.getElementById('match-score-p2');
+  if (p1MatchEl) p1MatchEl.textContent = `${player1Label}: ${this.matchScore[1]}`;
+  if (p2MatchEl) p2MatchEl.textContent = `${player2Label}: ${this.matchScore[2]}`;
+
     // Update game status
     const statusElement = document.getElementById("game-status");
     if (!this.gameActive) {
@@ -2459,6 +2579,24 @@ class BritishSquareGame {
     this.createBoard();
     this.updateDisplay();
     this.updateValidMoves();
+  }
+
+  newRound() {
+    this.board = Array(25).fill(null);
+    this.currentPlayer = 1;
+    this.gameActive = true;
+    this.moveCount = 0;
+    this.passCount = 0;
+    this.roundNumber += 1;
+    this.createBoard();
+    this.updateDisplay();
+    this.updateValidMoves();
+  }
+
+  resetMatch() {
+    this.matchScore = {1:0,2:0};
+    this.roundNumber = 1;
+    this.newGame();
   }
 
   setGameMode(mode) {
