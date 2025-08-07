@@ -37,6 +37,14 @@
             </div>
         </div>
 
+        <div class="overall-match-bar" style="display:flex; flex-wrap:wrap; gap:14px; align-items:center; background:rgba(255,255,255,0.9); padding:10px 16px; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.12);">
+            <span id="round-indicator" style="font-weight:bold;">Round 1</span>
+            <span id="match-score-p1">You: 0</span>
+            <span id="match-score-p2">AI: 0</span>
+            <span id="overall-cumulative" style="opacity:0.8;">Cumulative Pieces This Round — You: 0 | AI: 0</span>
+            <span style="margin-left:auto; font-size:0.85rem; opacity:0.7;">First to break 7 points wins match</span>
+        </div>
+
         <div class="game-status-panel">
             <div class="current-turn">
                 <h3>Current Player: <span id="current-player">You</span></h3>
@@ -96,12 +104,5 @@
     <script src="game3d.js"></script>
     <script src="gameonline.js"></script>
     <script src="gamemanager.js"></script>
-</body>
-</html>
-
-        <div id="match-info" style="margin:10px 0; display:flex; gap:1rem; flex-wrap:wrap; font-weight:bold;">
-            <span id="round-indicator">Round 1</span>
-            <span id="match-score-p1">You: 0</span>
-            <span id="match-score-p2">AI: 0</span>
-            <span style="font-weight:normal;">(First to break 7 wins)</span>
-        </div>
+    </body>
+    </html>

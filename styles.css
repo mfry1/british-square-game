@@ -275,6 +275,12 @@ header p {
     color: #666;
     margin-top: 5px;
     font-style: italic;
+    line-height: 1.2;
+    /* Reserve space for up to two lines to prevent board shift */
+    min-height: 2.5em;
+    max-height: 2.5em;
+    display: block;
+    overflow: hidden; /* clamp unexpected overflow */
 }
 
 @keyframes pulse {

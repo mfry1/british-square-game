@@ -10,6 +10,7 @@ class BritishSquareGame {
     // Multi-round match: cumulative net difference points, first to break 7 wins
     this.matchScore = { 1: 0, 2: 0 };
     this.roundNumber = 1;
+  this.lastRoundStarter = 1; // track previous round's starter for alternation
 
     this.initializeGame();
     this.attachEventListeners();
@@ -2374,8 +2375,8 @@ class BritishSquareGame {
       return false;
     }
 
-    // Special rule: Player 1 cannot use center square (index 12) on first move
-    if (this.currentPlayer === 1 && this.moveCount === 0 && index === 12) {
+    // Special rule: Center square (index 12) cannot be taken on the very first move of a round (regardless of who starts)
+    if (this.moveCount === 0 && index === 12) {
       return false;
     }
 
@@ -2498,9 +2499,10 @@ class BritishSquareGame {
       matchWinner,
       message,
     } = ctx;
-    const modal = document.createElement("div");
-    modal.className = "modal";
-    modal.style.cssText = "display:block !important;";
+  const modal = document.createElement("div");
+  // Use lightweight floating summary instead of full-screen overlay so board stays visible
+  modal.className = "round-summary-overlay";
+  modal.style.cssText = `position:fixed; right:15px; top:15px; z-index:1100; background:rgba(255,255,255,0.97); border:2px solid #1e3c72; border-radius:14px; padding:18px 20px; max-width:340px; box-shadow:0 10px 35px rgba(0,0,0,0.25); font-family:inherit;`;
     const p1Label = this.gameMode === "ai" ? "You" : "Player 1";
     const p2Label = this.gameMode === "ai" ? "AI" : "Player 2";
     let header;
@@ -2522,15 +2524,16 @@ class BritishSquareGame {
     const button = matchWinner
       ? `<button class='btn' onclick="this.closest('.modal').remove(); if(typeof gameManager!=='undefined'){ gameManager.currentGame.resetMatch(); } else { game.resetMatch(); }">New Match</button>`
       : `<button class='btn' onclick="this.closest('.modal').remove(); if(typeof gameManager!=='undefined'){ gameManager.currentGame.newRound(); } else { game.newRound(); }">Next Round</button>`;
-    modal.innerHTML = `<div class='modal-content'>
-      <h2>Round ${round} Complete</h2>
-      <h3>${header}</h3>
-      <p>${message}</p>
-      <p>${piecesLine}</p>
-      <p>${netLine}</p>
-      <p>${matchLine}</p>
+    modal.innerHTML = `<div style='display:flex; flex-direction:column; gap:6px;'>
+      <div style='font-size:1.15rem; font-weight:700; color:#1e3c72;'>Round ${round} Complete</div>
+      <div style='font-weight:600;'>${header}</div>
+      <div style='font-size:0.9rem; color:#444;'>${message}</div>
+      <div style='font-size:0.9rem;'>${piecesLine}</div>
+      <div style='font-size:0.85rem; color:#333;'>${netLine}</div>
+      <div style='font-size:0.85rem; color:#333;'>${matchLine}</div>
       ${finalLine}
-      ${button}
+      <div style='margin-top:4px; display:flex; gap:8px; flex-wrap:wrap;'>${button}</div>
+      <div style='font-size:0.65rem; opacity:0.6; margin-top:4px;'>Proceed to continue the match</div>
     </div>`;
     document.body.appendChild(modal);
     this.updateDisplay();
@@ -2595,6 +2598,12 @@ class BritishSquareGame {
     if (p2MatchEl)
       p2MatchEl.textContent = `${player2Label}: ${this.matchScore[2]}`;
 
+    // Overall cumulative pieces line (per-round live piece counts)
+    const overallCumEl = document.getElementById('overall-cumulative');
+    if (overallCumEl) {
+      overallCumEl.textContent = `Round Pieces — ${player1Label}: ${player1Count} | ${player2Label}: ${player2Count}`;
+    }
+
     // Update game status
     const statusElement = document.getElementById("game-status");
     if (!this.gameActive) {
@@ -2619,7 +2628,9 @@ class BritishSquareGame {
 
   newGame() {
     this.board = Array(25).fill(null);
-    this.currentPlayer = 1;
+  // Base game start always begins with Player 1; only reset alternation if first round
+  this.currentPlayer = 1;
+  if (this.roundNumber === 1) this.lastRoundStarter = 1;
     this.gameActive = true;
     this.moveCount = 0;
     this.passCount = 0;
@@ -2630,7 +2641,14 @@ class BritishSquareGame {
 
   newRound() {
     this.board = Array(25).fill(null);
-    this.currentPlayer = 1;
+    // Alternate starting player each round
+    if (this.lastRoundStarter === 1) {
+      this.currentPlayer = 2;
+      this.lastRoundStarter = 2;
+    } else {
+      this.currentPlayer = 1;
+      this.lastRoundStarter = 1;
+    }
     this.gameActive = true;
     this.moveCount = 0;
     this.passCount = 0;
@@ -2638,11 +2656,16 @@ class BritishSquareGame {
     this.createBoard();
     this.updateDisplay();
     this.updateValidMoves();
+    // If AI should start this round, immediately schedule its move
+    if (this.gameMode === 'ai' && this.currentPlayer === 2) {
+      this.makeAIMove();
+    }
   }
 
   resetMatch() {
     this.matchScore = { 1: 0, 2: 0 };
     this.roundNumber = 1;
+  this.lastRoundStarter = 1;
     this.newGame();
   }
 
